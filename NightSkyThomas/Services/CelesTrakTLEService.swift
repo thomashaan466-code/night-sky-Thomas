@@ -6,7 +6,7 @@ struct TLERecord: Hashable, Sendable {
     let line2: String
 }
 
-protocol TLEProviding {
+protocol TLEProviding: Sendable {
     func tle(catalogNumber: Int) async throws -> TLERecord
 }
 
