@@ -1,25 +1,25 @@
 import Foundation
 
-struct TwoLineElements: Hashable {
+struct TLERecord: Hashable, Sendable {
     let name: String
     let line1: String
     let line2: String
 }
 
 protocol TLEProviding {
-    func tle(catalogNumber: Int) async throws -> TwoLineElements
+    func tle(catalogNumber: Int) async throws -> TLERecord
 }
 
 actor CelesTrakTLEService: TLEProviding {
     private struct CacheEntry {
-        let tle: TwoLineElements
+        let tle: TLERecord
         let fetchedAt: Date
     }
 
     private var cache: [Int: CacheEntry] = [:]
     private let cacheLifetime: TimeInterval = 2 * 60 * 60
 
-    func tle(catalogNumber: Int) async throws -> TwoLineElements {
+    func tle(catalogNumber: Int) async throws -> TLERecord {
         if let cached = cache[catalogNumber], Date().timeIntervalSince(cached.fetchedAt) < cacheLifetime {
             return cached.tle
         }
@@ -44,14 +44,14 @@ actor CelesTrakTLEService: TLEProviding {
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        guard lines.count >= 2 else { throw URLError(.cannotParseResponse) }
-
-        let line1Index = lines.firstIndex(where: { $0.hasPrefix("1 ") })
-        guard let i = line1Index, i + 1 < lines.count, lines[i + 1].hasPrefix("2 ") else {
+        guard let i = lines.firstIndex(where: { $0.hasPrefix("1 ") }),
+              i + 1 < lines.count,
+              lines[i + 1].hasPrefix("2 ") else {
             throw URLError(.cannotParseResponse)
         }
+
         let name = i > 0 ? lines[i - 1] : "NORAD \(catalogNumber)"
-        let result = TwoLineElements(name: name, line1: lines[i], line2: lines[i + 1])
+        let result = TLERecord(name: name, line1: lines[i], line2: lines[i + 1])
         cache[catalogNumber] = CacheEntry(tle: result, fetchedAt: Date())
         return result
     }
