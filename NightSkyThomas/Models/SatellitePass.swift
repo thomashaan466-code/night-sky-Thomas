@@ -12,15 +12,23 @@ struct SatellitePass: Identifiable, Hashable, Sendable {
     let satelliteName: String
     let rise: LookAngle
     let culmination: LookAngle
-    let set: LookAngle
+    let setAngle: LookAngle
 
-    init(id: UUID = UUID(), satelliteName: String, rise: LookAngle, culmination: LookAngle, set: LookAngle) {
+    init(
+        id: UUID = UUID(),
+        satelliteName: String,
+        rise: LookAngle,
+        culmination: LookAngle,
+        set: LookAngle
+    ) {
         self.id = id
         self.satelliteName = satelliteName
         self.rise = rise
         self.culmination = culmination
-        self.set = set
+        self.setAngle = set
     }
 
-    var duration: TimeInterval { set.date.timeIntervalSince(rise.date) }
+    var duration: TimeInterval {
+        setAngle.date.timeIntervalSince(rise.date)
+    }
 }
