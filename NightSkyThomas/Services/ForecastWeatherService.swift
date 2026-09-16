@@ -1,16 +1,16 @@
 import Foundation
 
-struct ForecastConditions: Hashable {
+struct ForecastConditions: Hashable, Sendable {
     let date: Date
     let conditions: ObservationConditions
 }
 
-protocol ForecastWeatherProviding {
+protocol ForecastWeatherProviding: Sendable {
     func forecast(latitude: Double, longitude: Double) async throws -> [ForecastConditions]
     func conditions(near date: Date, latitude: Double, longitude: Double) async throws -> ObservationConditions
 }
 
-struct OpenMeteoForecastWeatherService: ForecastWeatherProviding {
+struct OpenMeteoForecastWeatherService: ForecastWeatherProviding, Sendable {
     private struct Response: Decodable {
         let hourly: Hourly
 
@@ -38,7 +38,7 @@ struct OpenMeteoForecastWeatherService: ForecastWeatherProviding {
             URLQueryItem(name: "longitude", value: String(longitude)),
             URLQueryItem(name: "hourly", value: "cloud_cover,precipitation_probability,visibility,is_day"),
             URLQueryItem(name: "forecast_days", value: "7"),
-            URLQueryItem(name: "timezone", value: "auto")
+            URLQueryItem(name: "timezone", value: "GMT")
         ]
 
         guard let url = components.url else { throw URLError(.badURL) }
@@ -50,6 +50,8 @@ struct OpenMeteoForecastWeatherService: ForecastWeatherProviding {
         let decoded = try JSONDecoder().decode(Response.self, from: data)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
 
         let count = [
