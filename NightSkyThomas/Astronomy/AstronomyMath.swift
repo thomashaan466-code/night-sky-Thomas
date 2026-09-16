@@ -14,6 +14,8 @@ enum TwilightState: String, Hashable, Sendable {
 }
 
 enum AstronomyMath {
+    static let astronomicalUnitKilometers = 149_597_870.7
+
     static func julianDate(_ date: Date) -> Double {
         date.timeIntervalSince1970 / 86_400 + 2_440_587.5
     }
@@ -60,39 +62,19 @@ enum AstronomyMath {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
 
-        let components = calendar.dateComponents([.year, .hour, .minute, .second], from: date)
-        let year = components.year ?? 2001
-        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
-        let hour = Double(components.hour ?? 0)
-        let minute = Double(components.minute ?? 0)
-        let second = Double(components.second ?? 0)
-        let daysInYear = calendar.range(of: .day, in: .year, for: date)?.count ?? (isLeapYear(year) ? 366 : 365)
-        let fractionalHour = hour + minute / 60 + second / 3600
-
-        let gamma = 2 * Double.pi / Double(daysInYear) * (Double(dayOfYear - 1) + (fractionalHour - 12) / 24)
-        let equationOfTime = 229.18 * (
-            0.000075
-            + 0.001868 * cos(gamma)
-            - 0.032077 * sin(gamma)
-            - 0.014615 * cos(2 * gamma)
-            - 0.040849 * sin(2 * gamma)
-        )
-        let declination = 0.006918
-            - 0.399912 * cos(gamma)
-            + 0.070257 * sin(gamma)
-            - 0.006758 * cos(2 * gamma)
-            + 0.000907 * sin(2 * gamma)
-            - 0.002697 * cos(3 * gamma)
-            + 0.00148 * sin(3 * gamma)
+        let parameters = approximateSolarParameters(date: date, calendar: calendar)
 
         // UTC is timezone zero in NOAA's true-solar-time equation.
-        let trueSolarMinutes = fractionalHour * 60 + equationOfTime + 4 * longitudeDegrees
+        let trueSolarMinutes = parameters.fractionalHour * 60
+            + parameters.equationOfTimeMinutes
+            + 4 * longitudeDegrees
         let hourAngleDegrees = normalizeSignedDegrees(trueSolarMinutes / 4 - 180)
         let hourAngle = degreesToRadians(hourAngleDegrees)
         let latitude = degreesToRadians(latitudeDegrees)
 
         let cosZenith = clamp(
-            sin(latitude) * sin(declination) + cos(latitude) * cos(declination) * cos(hourAngle),
+            sin(latitude) * sin(parameters.declinationRadians)
+                + cos(latitude) * cos(parameters.declinationRadians) * cos(hourAngle),
             minimum: -1,
             maximum: 1
         )
@@ -101,11 +83,36 @@ enum AstronomyMath {
 
         let azimuthRadians = atan2(
             sin(hourAngle),
-            cos(hourAngle) * sin(latitude) - tan(declination) * cos(latitude)
+            cos(hourAngle) * sin(latitude)
+                - tan(parameters.declinationRadians) * cos(latitude)
         )
         let azimuth = normalizeDegrees(radiansToDegrees(azimuthRadians) + 180)
 
         return HorizontalCoordinate(azimuth: azimuth, altitude: altitude)
+    }
+
+    /// Approximate geocentric Sun position in the rotating ECEF/PEF frame.
+    ///
+    /// NOAA's fractional-year equations provide declination and equation of time.
+    /// At Greenwich, the negative solar hour angle is the subsolar longitude, which
+    /// directly defines the Earth-fixed direction. A constant astronomical-unit
+    /// distance is sufficient for the angular-disk shadow model; the annual distance
+    /// variation changes the Sun's angular radius by only a few thousandths of a degree.
+    static func solarPositionEarthFixed(date: Date) -> EarthFixedPosition {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let parameters = approximateSolarParameters(date: date, calendar: calendar)
+        let greenwichHourAngleDegrees = normalizeSignedDegrees(
+            (parameters.fractionalHour * 60 + parameters.equationOfTimeMinutes) / 4 - 180
+        )
+        let subsolarLongitude = degreesToRadians(-greenwichHourAngleDegrees)
+        let equatorialProjection = astronomicalUnitKilometers * cos(parameters.declinationRadians)
+
+        return EarthFixedPosition(
+            xKilometers: equatorialProjection * cos(subsolarLongitude),
+            yKilometers: equatorialProjection * sin(subsolarLongitude),
+            zKilometers: astronomicalUnitKilometers * sin(parameters.declinationRadians)
+        )
     }
 
     static func twilightState(solarAltitudeDegrees: Double) -> TwilightState {
@@ -142,8 +149,45 @@ enum AstronomyMath {
         min(maximum, max(minimum, value))
     }
 
-    private static func isLeapYear(_ year: Int) -> Bool {
-        year.isMultiple(of: 400) || (year.isMultiple(of: 4) && !year.isMultiple(of: 100))
+    private struct ApproximateSolarParameters {
+        let fractionalHour: Double
+        let equationOfTimeMinutes: Double
+        let declinationRadians: Double
+    }
+
+    private static func approximateSolarParameters(
+        date: Date,
+        calendar: Calendar
+    ) -> ApproximateSolarParameters {
+        let components = calendar.dateComponents([.hour, .minute, .second], from: date)
+        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
+        let daysInYear = calendar.range(of: .day, in: .year, for: date)?.count ?? 365
+        let hour = Double(components.hour ?? 0)
+        let minute = Double(components.minute ?? 0)
+        let second = Double(components.second ?? 0)
+        let fractionalHour = hour + minute / 60 + second / 3600
+        let gamma = 2 * Double.pi / Double(daysInYear)
+            * (Double(dayOfYear - 1) + (fractionalHour - 12) / 24)
+        let equationOfTime = 229.18 * (
+            0.000075
+            + 0.001868 * cos(gamma)
+            - 0.032077 * sin(gamma)
+            - 0.014615 * cos(2 * gamma)
+            - 0.040849 * sin(2 * gamma)
+        )
+        let declination = 0.006918
+            - 0.399912 * cos(gamma)
+            + 0.070257 * sin(gamma)
+            - 0.006758 * cos(2 * gamma)
+            + 0.000907 * sin(2 * gamma)
+            - 0.002697 * cos(3 * gamma)
+            + 0.00148 * sin(3 * gamma)
+
+        return ApproximateSolarParameters(
+            fractionalHour: fractionalHour,
+            equationOfTimeMinutes: equationOfTime,
+            declinationRadians: declination
+        )
     }
 
     private static func degreesToRadians(_ degrees: Double) -> Double { degrees * .pi / 180 }

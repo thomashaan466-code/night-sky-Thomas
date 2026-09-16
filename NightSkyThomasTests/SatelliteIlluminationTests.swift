@@ -6,8 +6,8 @@ final class SatelliteIlluminationTests: XCTestCase {
 
     func testSatelliteBehindEarthIsInUmbra() {
         let result = SatelliteIlluminationGeometry.classify(
-            satellitePosition: SIMD3(7_000, 0, 0),
-            sunPosition: SIMD3(-astronomicalUnitKilometers, 0, 0)
+            satellitePosition: earthFixed(7_000, 0, 0),
+            sunPosition: earthFixed(-astronomicalUnitKilometers, 0, 0)
         )
 
         XCTAssertEqual(result, .umbra)
@@ -15,8 +15,8 @@ final class SatelliteIlluminationTests: XCTestCase {
 
     func testSatelliteBetweenEarthAndSunIsSunlit() {
         let result = SatelliteIlluminationGeometry.classify(
-            satellitePosition: SIMD3(7_000, 0, 0),
-            sunPosition: SIMD3(astronomicalUnitKilometers, 0, 0)
+            satellitePosition: earthFixed(7_000, 0, 0),
+            sunPosition: earthFixed(astronomicalUnitKilometers, 0, 0)
         )
 
         XCTAssertEqual(result, .sunlit)
@@ -38,8 +38,8 @@ final class SatelliteIlluminationTests: XCTestCase {
 
         XCTAssertEqual(
             SatelliteIlluminationGeometry.classify(
-                satellitePosition: satellite,
-                sunPosition: sun
+                satellitePosition: EarthFixedPosition(kilometers: satellite),
+                sunPosition: EarthFixedPosition(kilometers: sun)
             ),
             .penumbra
         )
@@ -47,8 +47,51 @@ final class SatelliteIlluminationTests: XCTestCase {
 
     func testInvalidPositionInsideEarthReturnsNil() {
         XCTAssertNil(SatelliteIlluminationGeometry.classify(
-            satellitePosition: SIMD3(1_000, 0, 0),
-            sunPosition: SIMD3(astronomicalUnitKilometers, 0, 0)
+            satellitePosition: earthFixed(1_000, 0, 0),
+            sunPosition: earthFixed(astronomicalUnitKilometers, 0, 0)
         ))
+    }
+
+    func testVanguardReferenceStatesMatchSkyfieldAndJPLDE421() throws {
+        // Independently checked with Skyfield 1.55 `is_sunlit` using JPL DE421.
+        // These instants are deliberately far from an eclipse boundary so this test
+        // validates the full TLE -> SGP4 TEME -> ECEF -> solar-shadow integration.
+        let vanguard = TLERecord(
+            name: "VANGUARD 1",
+            line1: "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753",
+            line2: "2 00005  34.2682 331.5174 1849677 331.7664  19.3264 10.82419157413667"
+        )
+        let service = SatelliteIlluminationService()
+
+        XCTAssertEqual(
+            try service.illumination(
+                tleRecord: vanguard,
+                at: makeUTCDate(year: 2000, month: 6, day: 28, hour: 0, minute: 0)
+            ),
+            .sunlit
+        )
+        XCTAssertEqual(
+            try service.illumination(
+                tleRecord: vanguard,
+                at: makeUTCDate(year: 2000, month: 6, day: 28, hour: 1, minute: 15)
+            ),
+            .umbra
+        )
+    }
+
+    private func earthFixed(_ x: Double, _ y: Double, _ z: Double) -> EarthFixedPosition {
+        EarthFixedPosition(xKilometers: x, yKilometers: y, zKilometers: z)
+    }
+
+    private func makeUTCDate(year: Int, month: Int, day: Int, hour: Int, minute: Int) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar.date(from: DateComponents(
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        ))!
     }
 }

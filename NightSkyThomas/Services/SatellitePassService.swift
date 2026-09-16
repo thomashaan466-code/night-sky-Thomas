@@ -12,7 +12,6 @@ protocol SatellitePassProviding: Sendable {
 }
 
 enum SatellitePassError: Error, Equatable {
-    case invalidTLEEpoch
     case invalidTopocentricRange
 }
 
@@ -31,7 +30,7 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
 
         let tle = try TLE(name: tleRecord.name, lineOne: tleRecord.line1, lineTwo: tleRecord.line2)
         let propagator = try PropagatorFactory.create(tle: tle)
-        let epoch = try tleEpoch(from: tleRecord.line1)
+        let epoch = tle.epoch
 
         func look(at date: Date) throws -> LookAngle {
             let minutes = date.timeIntervalSince(epoch) / 60
@@ -196,26 +195,4 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
         return try look(low.addingTimeInterval(high.timeIntervalSince(low) / 2))
     }
 
-    private func tleEpoch(from line1: String) throws -> Date {
-        // TLE epoch occupies columns 19–32: YYDDD.DDDDDDDD.
-        guard line1.count >= 32 else { throw SatellitePassError.invalidTLEEpoch }
-        let start = line1.index(line1.startIndex, offsetBy: 18)
-        let end = line1.index(start, offsetBy: 14)
-        let raw = String(line1[start..<end])
-        guard raw.count == 14,
-              let yy = Int(raw.prefix(2)),
-              let day = Double(raw.dropFirst(2)),
-              day >= 1,
-              day < 367 else {
-            throw SatellitePassError.invalidTLEEpoch
-        }
-        let year = yy < 57 ? 2000 + yy : 1900 + yy
-
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        guard let jan1 = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) else {
-            throw SatellitePassError.invalidTLEEpoch
-        }
-        return jan1.addingTimeInterval((day - 1) * 86_400)
-    }
 }

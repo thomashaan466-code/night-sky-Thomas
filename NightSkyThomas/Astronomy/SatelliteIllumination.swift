@@ -6,6 +6,22 @@ enum SatelliteIllumination: String, Hashable, Sendable {
     case umbra
 }
 
+/// An Earth-centered position in the rotating ECEF/PEF frame, expressed in kilometers.
+///
+/// Keeping the frame and unit in the type prevents accidentally comparing SwiftSGP4's
+/// native TEME output with a Sun vector expressed in another celestial frame.
+struct EarthFixedPosition: Hashable, Sendable {
+    let kilometers: SIMD3<Double>
+
+    init(kilometers: SIMD3<Double>) {
+        self.kilometers = kilometers
+    }
+
+    init(xKilometers: Double, yKilometers: Double, zKilometers: Double) {
+        kilometers = SIMD3(xKilometers, yKilometers, zKilometers)
+    }
+}
+
 enum SatelliteIlluminationGeometry {
     // Mean radii are sufficient for the angular-disk eclipse model used here.
     static let earthRadiusKilometers = 6_378.137
@@ -13,16 +29,16 @@ enum SatelliteIlluminationGeometry {
 
     /// Classifies the apparent overlap of Earth and Sun as seen from a satellite.
     ///
-    /// All vectors must use the same Earth-centered inertial frame and kilometer units:
+    /// Both positions use the same Earth-centered Earth-fixed frame and kilometer units.
     /// `satellitePosition` is Earth -> satellite and `sunPosition` is Earth -> Sun.
     /// This function intentionally performs only shadow geometry. Observer darkness,
     /// elevation, brightness and weather belong to the visibility layer.
     static func classify(
-        satellitePosition: SIMD3<Double>,
-        sunPosition: SIMD3<Double>
+        satellitePosition: EarthFixedPosition,
+        sunPosition: EarthFixedPosition
     ) -> SatelliteIllumination? {
-        let satelliteToEarth = -satellitePosition
-        let satelliteToSun = sunPosition - satellitePosition
+        let satelliteToEarth = -satellitePosition.kilometers
+        let satelliteToSun = sunPosition.kilometers - satellitePosition.kilometers
 
         let earthDistance = length(satelliteToEarth)
         let sunDistance = length(satelliteToSun)

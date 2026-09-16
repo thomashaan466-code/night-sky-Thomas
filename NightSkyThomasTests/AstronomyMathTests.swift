@@ -37,6 +37,25 @@ final class AstronomyMathTests: XCTestCase {
         XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -18.0001), .night)
     }
 
+    func testEarthFixedSunDirectionMatchesJPLHorizonsReference() {
+        let date = makeUTCDate(year: 2000, month: 6, day: 28, hour: 0)
+        let calculated = AstronomyMath.solarPositionEarthFixed(date: date).kilometers
+
+        // JPL Horizons DE441/ICRF geocentric Sun vector for 2000-06-28 00:00 TDB,
+        // rotated to Earth-fixed with the Vallado GMST expression. TDB-vs-UTC and
+        // ICRF-vs-TEME differences are negligible at this intentionally loose bound.
+        let jplReferenceECEF = SIMD3<Double>(
+            -139_695_864.30145976,
+            -1_944_662.293820262,
+            60_093_559.65973263
+        )
+
+        XCTAssertLessThan(
+            angularSeparationDegrees(calculated, jplReferenceECEF),
+            0.2
+        )
+    }
+
     private func makeUTCDate(year: Int, month: Int, day: Int, hour: Int) -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -46,5 +65,12 @@ final class AstronomyMathTests: XCTestCase {
             day: day,
             hour: hour
         ))!
+    }
+
+    private func angularSeparationDegrees(_ lhs: SIMD3<Double>, _ rhs: SIMD3<Double>) -> Double {
+        let lhsLength = sqrt(lhs.x * lhs.x + lhs.y * lhs.y + lhs.z * lhs.z)
+        let rhsLength = sqrt(rhs.x * rhs.x + rhs.y * rhs.y + rhs.z * rhs.z)
+        let cosine = (lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z) / (lhsLength * rhsLength)
+        return acos(min(1, max(-1, cosine))) * 180 / .pi
     }
 }
