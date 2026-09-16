@@ -7,7 +7,7 @@ options:
 packages:
   SwiftSGP4:
     url: https://github.com/hjoliveira/swift-sgp4.git
-    from: 1.0.0
+    revision: ab0fdc88e9799ae0435c1426a697838d0efdd261
 settings:
   base:
     SWIFT_VERSION: "6.0"
