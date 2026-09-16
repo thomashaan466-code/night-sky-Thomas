@@ -10,17 +10,17 @@ final class SatellitePassServiceTests: XCTestCase {
         line1: "1 00005U 58002B   00179.78495062  .00000023  00000-0  28098-4 0  4753",
         line2: "2 00005  34.2682 331.5174 1849677 331.7664  19.3264 10.82419157413667"
     )
+    private let observer = ObserverLocation(latitude: 51.50, longitude: 3.61, altitudeMeters: 5)
+    private let referenceStart = ISO8601DateFormatter().date(from: "2000-06-28T00:00:00Z")!
 
     func testPassesAreChronologicalAndGeometricallyConsistent() throws {
         let service = SatellitePassService()
-        let observer = ObserverLocation(latitude: 51.50, longitude: 3.61, altitudeMeters: 5)
-        let start = ISO8601DateFormatter().date(from: "2000-06-28T00:00:00Z")!
-        let end = start.addingTimeInterval(48 * 60 * 60)
+        let end = referenceStart.addingTimeInterval(48 * 60 * 60)
 
         let passes = try service.passes(
             tleRecord: vanguard,
             observer: observer,
-            from: start,
+            from: referenceStart,
             through: end,
             minimumElevation: 10
         )
@@ -40,9 +40,54 @@ final class SatellitePassServiceTests: XCTestCase {
         }
     }
 
+    func testWindowStartingMidPassDoesNotFabricateRiseAtWindowStart() throws {
+        let service = SatellitePassService()
+        let fullWindow = try service.passes(
+            tleRecord: vanguard,
+            observer: observer,
+            from: referenceStart,
+            through: referenceStart.addingTimeInterval(48 * 60 * 60),
+            minimumElevation: 10
+        )
+        let first = try XCTUnwrap(fullWindow.first)
+        let midPass = first.rise.date.addingTimeInterval(first.duration / 2)
+
+        let clipped = try service.passes(
+            tleRecord: vanguard,
+            observer: observer,
+            from: midPass,
+            through: first.setAngle.date.addingTimeInterval(60),
+            minimumElevation: 10
+        )
+
+        XCTAssertTrue(clipped.isEmpty)
+    }
+
+    func testWindowEndingMidPassDoesNotReturnIncompletePass() throws {
+        let service = SatellitePassService()
+        let fullWindow = try service.passes(
+            tleRecord: vanguard,
+            observer: observer,
+            from: referenceStart,
+            through: referenceStart.addingTimeInterval(48 * 60 * 60),
+            minimumElevation: 10
+        )
+        let first = try XCTUnwrap(fullWindow.first)
+        let midPass = first.rise.date.addingTimeInterval(first.duration / 2)
+
+        let clipped = try service.passes(
+            tleRecord: vanguard,
+            observer: observer,
+            from: first.rise.date.addingTimeInterval(-60),
+            through: midPass,
+            minimumElevation: 10
+        )
+
+        XCTAssertTrue(clipped.isEmpty)
+    }
+
     func testEmptyWindowReturnsNoPasses() throws {
         let service = SatellitePassService()
-        let observer = ObserverLocation(latitude: 51.50, longitude: 3.61)
         let date = Date(timeIntervalSince1970: 0)
 
         XCTAssertTrue(try service.passes(
@@ -57,7 +102,6 @@ final class SatellitePassServiceTests: XCTestCase {
     func testMalformedShortTLEDoesNotCrash() {
         let service = SatellitePassService()
         let malformed = TLERecord(name: "BAD", line1: "1 BAD", line2: "2 BAD")
-        let observer = ObserverLocation(latitude: 51.50, longitude: 3.61)
         let start = Date(timeIntervalSince1970: 0)
 
         XCTAssertThrowsError(try service.passes(
