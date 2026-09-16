@@ -1,8 +1,16 @@
 import Foundation
 
-struct HorizontalCoordinate: Hashable {
+struct HorizontalCoordinate: Hashable, Sendable {
     let azimuth: Double
     let altitude: Double
+}
+
+enum TwilightState: String, Hashable, Sendable {
+    case daylight
+    case civil
+    case nautical
+    case astronomical
+    case night
 }
 
 enum AstronomyMath {
@@ -30,7 +38,7 @@ enum AstronomyMath {
         let lat = degreesToRadians(latitudeDegrees)
 
         let sinAlt = sin(dec) * sin(lat) + cos(dec) * cos(lat) * cos(hourAngle)
-        let altitude = asin(sinAlt)
+        let altitude = asin(clamp(sinAlt, minimum: -1, maximum: 1))
 
         let y = -sin(hourAngle) * cos(dec)
         let x = sin(dec) * cos(lat) - cos(dec) * sin(lat) * cos(hourAngle)
@@ -40,6 +48,79 @@ enum AstronomyMath {
             azimuth: normalizeDegrees(radiansToDegrees(azimuth)),
             altitude: radiansToDegrees(altitude)
         )
+    }
+
+    /// Approximate geometric solar position using NOAA's published fractional-year equations.
+    /// Inputs are an absolute Date plus east-positive longitude, so the calculation is timezone independent.
+    static func solarHorizontalCoordinate(
+        date: Date,
+        latitudeDegrees: Double,
+        longitudeDegrees: Double
+    ) -> HorizontalCoordinate {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let components = calendar.dateComponents([.year, .day, .hour, .minute, .second], from: date)
+        let year = components.year ?? 2001
+        let dayOfYear = components.day ?? 1
+        let hour = Double(components.hour ?? 0)
+        let minute = Double(components.minute ?? 0)
+        let second = Double(components.second ?? 0)
+        let daysInYear = calendar.range(of: .day, in: .year, for: date)?.count ?? (isLeapYear(year) ? 366 : 365)
+        let fractionalHour = hour + minute / 60 + second / 3600
+
+        let gamma = 2 * Double.pi / Double(daysInYear) * (Double(dayOfYear - 1) + (fractionalHour - 12) / 24)
+        let equationOfTime = 229.18 * (
+            0.000075
+            + 0.001868 * cos(gamma)
+            - 0.032077 * sin(gamma)
+            - 0.014615 * cos(2 * gamma)
+            - 0.040849 * sin(2 * gamma)
+        )
+        let declination = 0.006918
+            - 0.399912 * cos(gamma)
+            + 0.070257 * sin(gamma)
+            - 0.006758 * cos(2 * gamma)
+            + 0.000907 * sin(2 * gamma)
+            - 0.002697 * cos(3 * gamma)
+            + 0.00148 * sin(3 * gamma)
+
+        // UTC is timezone zero in NOAA's true-solar-time equation.
+        let trueSolarMinutes = fractionalHour * 60 + equationOfTime + 4 * longitudeDegrees
+        let hourAngleDegrees = normalizeSignedDegrees(trueSolarMinutes / 4 - 180)
+        let hourAngle = degreesToRadians(hourAngleDegrees)
+        let latitude = degreesToRadians(latitudeDegrees)
+
+        let cosZenith = clamp(
+            sin(latitude) * sin(declination) + cos(latitude) * cos(declination) * cos(hourAngle),
+            minimum: -1,
+            maximum: 1
+        )
+        let zenith = acos(cosZenith)
+        let altitude = 90 - radiansToDegrees(zenith)
+
+        let azimuthRadians = atan2(
+            sin(hourAngle),
+            cos(hourAngle) * sin(latitude) - tan(declination) * cos(latitude)
+        )
+        let azimuth = normalizeDegrees(radiansToDegrees(azimuthRadians) + 180)
+
+        return HorizontalCoordinate(azimuth: azimuth, altitude: altitude)
+    }
+
+    static func twilightState(solarAltitudeDegrees: Double) -> TwilightState {
+        switch solarAltitudeDegrees {
+        case 0...:
+            return .daylight
+        case -6..<0:
+            return .civil
+        case -12..<(-6):
+            return .nautical
+        case -18..<(-12):
+            return .astronomical
+        default:
+            return .night
+        }
     }
 
     static func angularDifference(from heading: Double, to targetAzimuth: Double) -> Double {
@@ -55,6 +136,14 @@ enum AstronomyMath {
         var value = normalizeDegrees(value)
         if value > 180 { value -= 360 }
         return value
+    }
+
+    private static func clamp(_ value: Double, minimum: Double, maximum: Double) -> Double {
+        min(maximum, max(minimum, value))
+    }
+
+    private static func isLeapYear(_ year: Int) -> Bool {
+        year.isMultiple(of: 400) || (year.isMultiple(of: 4) && !year.isMultiple(of: 100))
     }
 
     private static func degreesToRadians(_ degrees: Double) -> Double { degrees * .pi / 180 }
