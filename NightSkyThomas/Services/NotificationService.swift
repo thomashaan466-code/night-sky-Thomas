@@ -1,13 +1,14 @@
 import Foundation
 import UserNotifications
 
-actor SkyNotificationService {
+@MainActor
+final class SkyNotificationService {
     static let shared = SkyNotificationService()
 
-    private let center = UNUserNotificationCenter.current()
+    private init() {}
 
     func requestAuthorization() async throws -> Bool {
-        try await center.requestAuthorization(options: [.alert, .sound, .badge])
+        try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
     }
 
     func schedule(event: SkyEvent, score: SkyScoreResult, leadMinutes: Int) async throws {
@@ -32,11 +33,13 @@ actor SkyNotificationService {
             content: content,
             trigger: trigger
         )
-        try await center.add(request)
+        try await UNUserNotificationCenter.current().add(request)
     }
 
     func cancel(event: SkyEvent) {
-        center.removePendingNotificationRequests(withIdentifiers: ["sky-event-\(event.id.uuidString)"])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: ["sky-event-\(event.id.uuidString)"]
+        )
     }
 
     private func notificationBody(event: SkyEvent, score: SkyScoreResult) -> String {
