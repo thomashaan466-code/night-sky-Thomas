@@ -29,9 +29,12 @@ final class AstronomyMathTests: XCTestCase {
     func testTwilightBoundaries() {
         XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: 10), .daylight)
         XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -0.1), .civil)
-        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -6), .nautical)
-        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -12), .astronomical)
-        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -18), .night)
+        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -6), .civil)
+        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -6.0001), .nautical)
+        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -12), .nautical)
+        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -12.0001), .astronomical)
+        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -18), .astronomical)
+        XCTAssertEqual(AstronomyMath.twilightState(solarAltitudeDegrees: -18.0001), .night)
     }
 
     private func makeUTCDate(year: Int, month: Int, day: Int, hour: Int) -> Date {
