@@ -21,5 +21,14 @@ jobs:
         run: test -s pwa/index.html && test -s pwa/styles.css && test -s pwa/manifest.webmanifest
       - name: Manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('pwa/manifest.webmanifest','utf8'))"
-      - name: No exact private coordinates
-        run: '! grep -R -E "51\\.49[0-9]{3,}|3\\.61[0-9]{3,}" pwa --exclude=app.js || true'
+      - name: Runtime location stays runtime-only
+        run: |
+          grep -q "navigator.geolocation" pwa/app.js
+          grep -q "Middelburg (fallback)" pwa/app.js
+          ! grep -R -i -E "(street|straat|laan|weg|plein|postcode|postal)[^\n]{0,40}[0-9]{1,4}" pwa --exclude=README.md
+      - name: Reliability guardrails
+        run: |
+          grep -q "timeformat=unixtime" pwa/app.js
+          grep -q "TLE_FRESH_MS=2\*3600e3" pwa/app.js
+          grep -q "ISS-bron niet beschikbaar" pwa/app.js
+          grep -q "Helderheid is niet berekend" pwa/app.js
