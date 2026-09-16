@@ -15,6 +15,6 @@ struct ObserverLocation: Hashable, Sendable {
     init(_ location: CLLocation) {
         latitude = location.coordinate.latitude
         longitude = location.coordinate.longitude
-        altitudeMeters = max(location.altitude, 0)
+        altitudeMeters = location.verticalAccuracy >= 0 ? location.altitude : 0
     }
 }
