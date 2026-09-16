@@ -10,7 +10,13 @@ protocol ForecastWeatherProviding: Sendable {
     func conditions(near date: Date, latitude: Double, longitude: Double) async throws -> ObservationConditions
 }
 
+enum ForecastWeatherError: Error, Equatable {
+    case requestedDateUnavailable
+}
+
 struct OpenMeteoForecastWeatherService: ForecastWeatherProviding, Sendable {
+    private static let maximumHourlyMatchDistance: TimeInterval = 60 * 60
+
     private struct Response: Decodable {
         let hourly: Hourly
 
@@ -78,10 +84,21 @@ struct OpenMeteoForecastWeatherService: ForecastWeatherProviding, Sendable {
 
     func conditions(near date: Date, latitude: Double, longitude: Double) async throws -> ObservationConditions {
         let values = try await forecast(latitude: latitude, longitude: longitude)
-        guard let closest = values.min(by: {
-            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
-        }) else {
-            throw URLError(.cannotParseResponse)
+        return try Self.conditions(near: date, from: values)
+    }
+
+    static func conditions(
+        near date: Date,
+        from values: [ForecastConditions]
+    ) throws -> ObservationConditions {
+        guard let firstDate = values.map(\.date).min(),
+              let lastDate = values.map(\.date).max(),
+              (firstDate...lastDate).contains(date),
+              let closest = values.min(by: {
+                  abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+              }),
+              abs(closest.date.timeIntervalSince(date)) <= maximumHourlyMatchDistance else {
+            throw ForecastWeatherError.requestedDateUnavailable
         }
         return closest.conditions
     }
