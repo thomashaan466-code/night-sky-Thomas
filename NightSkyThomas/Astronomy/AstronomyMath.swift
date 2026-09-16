@@ -60,9 +60,9 @@ enum AstronomyMath {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
 
-        let components = calendar.dateComponents([.year, .day, .hour, .minute, .second], from: date)
+        let components = calendar.dateComponents([.year, .hour, .minute, .second], from: date)
         let year = components.year ?? 2001
-        let dayOfYear = components.day ?? 1
+        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
         let hour = Double(components.hour ?? 0)
         let minute = Double(components.minute ?? 0)
         let second = Double(components.second ?? 0)
