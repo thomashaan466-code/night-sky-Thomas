@@ -171,17 +171,15 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
             let span = high.timeIntervalSince(low)
             let left = low.addingTimeInterval(span / 3)
             let right = high.addingTimeInterval(-span / 3)
-            if try look(at: left, using: look).elevationDegrees < look(at: right, using: look).elevationDegrees {
+            let leftLook = try look(left)
+            let rightLook = try look(right)
+            if leftLook.elevationDegrees < rightLook.elevationDegrees {
                 low = left
             } else {
                 high = right
             }
         }
-        return try look(at: low.addingTimeInterval(high.timeIntervalSince(low) / 2), using: look)
-    }
-
-    private func look(at date: Date, using provider: (Date) throws -> LookAngle) throws -> LookAngle {
-        try provider(date)
+        return try look(low.addingTimeInterval(high.timeIntervalSince(low) / 2))
     }
 
     private func tleEpoch(from line1: String) throws -> Date {
