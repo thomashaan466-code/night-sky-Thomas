@@ -1,8 +1,9 @@
+import Combine
 import CoreLocation
 import Foundation
 
 @MainActor
-final class LocationService: NSObject, ObservableObject, CLLocationManagerDelegate {
+final class LocationService: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     @Published private(set) var location: CLLocation?
     @Published private(set) var trueHeading: CLLocationDirection?
     @Published private(set) var authorizationStatus: CLAuthorizationStatus
