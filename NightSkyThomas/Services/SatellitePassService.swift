@@ -1,7 +1,7 @@
 import Foundation
 import SwiftSGP4
 
-protocol SatellitePassProviding {
+protocol SatellitePassProviding: Sendable {
     func passes(
         tleRecord: TLERecord,
         observer: ObserverLocation,
@@ -11,7 +11,11 @@ protocol SatellitePassProviding {
     ) throws -> [SatellitePass]
 }
 
-struct SatellitePassService: SatellitePassProviding {
+enum SatellitePassError: Error, Equatable {
+    case invalidTLEEpoch
+}
+
+struct SatellitePassService: SatellitePassProviding, Sendable {
     private let scanStep: TimeInterval = 20
     private let refinementIterations = 18
 
@@ -26,7 +30,7 @@ struct SatellitePassService: SatellitePassProviding {
 
         let tle = try TLE(name: tleRecord.name, lineOne: tleRecord.line1, lineTwo: tleRecord.line2)
         let propagator = try PropagatorFactory.create(tle: tle)
-        let epoch = tleEpoch(from: tleRecord.line1)
+        let epoch = try tleEpoch(from: tleRecord.line1)
 
         func look(at date: Date) throws -> LookAngle {
             let minutes = date.timeIntervalSince(epoch) / 60
@@ -80,6 +84,7 @@ struct SatellitePassService: SatellitePassProviding {
                 let set = try look(at: setDate)
                 let peak = try refinePeak(
                     around: activePeak?.date ?? previousDate,
+                    boundedBy: rise.date...set.date,
                     look: look
                 )
                 result.append(SatellitePass(
@@ -156,40 +161,49 @@ struct SatellitePassService: SatellitePassProviding {
 
     private func refinePeak(
         around center: Date,
+        boundedBy bounds: ClosedRange<Date>,
         look: (Date) throws -> LookAngle
     ) throws -> LookAngle {
-        var low = center.addingTimeInterval(-scanStep)
-        var high = center.addingTimeInterval(scanStep)
+        var low = max(bounds.lowerBound, center.addingTimeInterval(-scanStep))
+        var high = min(bounds.upperBound, center.addingTimeInterval(scanStep))
 
         for _ in 0..<refinementIterations {
             let span = high.timeIntervalSince(low)
             let left = low.addingTimeInterval(span / 3)
             let right = high.addingTimeInterval(-span / 3)
-            if try look(left).elevationDegrees < look(right).elevationDegrees {
+            if try look(at: left, using: look).elevationDegrees < look(at: right, using: look).elevationDegrees {
                 low = left
             } else {
                 high = right
             }
         }
-        return try look(low.addingTimeInterval(high.timeIntervalSince(low) / 2))
+        return try look(at: low.addingTimeInterval(high.timeIntervalSince(low) / 2), using: look)
     }
 
-    private func tleEpoch(from line1: String) -> Date {
+    private func look(at date: Date, using provider: (Date) throws -> LookAngle) throws -> LookAngle {
+        try provider(date)
+    }
+
+    private func tleEpoch(from line1: String) throws -> Date {
         // TLE epoch occupies columns 19–32: YYDDD.DDDDDDDD.
+        guard line1.count >= 32 else { throw SatellitePassError.invalidTLEEpoch }
         let start = line1.index(line1.startIndex, offsetBy: 18)
         let end = line1.index(start, offsetBy: 14)
         let raw = String(line1[start..<end])
-        let yy = Int(raw.prefix(2)) ?? 0
-        let day = Double(raw.dropFirst(2)) ?? 1
+        guard raw.count == 14,
+              let yy = Int(raw.prefix(2)),
+              let day = Double(raw.dropFirst(2)),
+              day >= 1,
+              day < 367 else {
+            throw SatellitePassError.invalidTLEEpoch
+        }
         let year = yy < 57 ? 2000 + yy : 1900 + yy
 
-        var components = DateComponents()
-        components.calendar = Calendar(identifier: .gregorian)
-        components.timeZone = TimeZone(secondsFromGMT: 0)
-        components.year = year
-        components.month = 1
-        components.day = 1
-        let jan1 = components.date ?? .distantPast
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        guard let jan1 = calendar.date(from: DateComponents(year: year, month: 1, day: 1)) else {
+            throw SatellitePassError.invalidTLEEpoch
+        }
         return jan1.addingTimeInterval((day - 1) * 86_400)
     }
 }
