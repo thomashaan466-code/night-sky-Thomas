@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07101f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Night Sky Thomas</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><p class="eyebrow">NIGHT SKY THOMAS</p><h1>Moet ik naar buiten?</h1></div>
+      <button id="locate" class="icon" aria-label="Vernieuw locatie">◎</button>
+    </header>
+
+    <section id="hero" class="hero card">
+      <p id="location">Locatie bepalen…</p>
+      <div class="verdict-row"><span id="verdictIcon">◌</span><h2 id="verdict">Hemel wordt gecontroleerd</h2></div>
+      <p id="reason">We combineren duisternis, weer, ISS, maan en aurora.</p>
+      <p id="updated" class="muted"></p>
+    </section>
+
+    <section class="grid">
+      <article class="card"><p class="label">NU</p><h3 id="darkness">—</h3><p id="weather">Weer laden…</p></article>
+      <article class="card"><p class="label">MAAN</p><h3 id="moon">—</h3><p id="moonSub">Positie laden…</p></article>
+    </section>
+
+    <section class="card feature">
+      <div><p class="label">ISS · KOMENDE 24 UUR</p><h3 id="iss">Passages berekenen…</h3><p id="issSub">Alleen praktisch zichtbare passages tellen mee.</p></div>
+      <span id="issBadge" class="badge">LIVE DATA</span>
+    </section>
+
+    <section class="card feature">
+      <div><p class="label">NOORDERLICHT</p><h3 id="aurora">Aurora laden…</h3><p id="auroraSub">NOAA OVATION, indicatief en geen garantie.</p></div>
+      <span id="auroraBadge" class="badge">NOAA</span>
+    </section>
+
+    <section class="card"><p class="label">VANAVOND</p><div id="timeline" class="timeline"><p>Gegevens laden…</p></div></section>
+
+    <a id="skyMap" class="primary" href="https://stellarium-web.org/" target="_blank" rel="noopener">Open interactieve hemelkaart ↗</a>
+    <p class="foot">Persoonlijke hobbytool. Een voorspelling blijft afhankelijk van actuele brondata en lokale omstandigheden.</p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
