@@ -13,6 +13,7 @@ protocol SatellitePassProviding: Sendable {
 
 enum SatellitePassError: Error, Equatable {
     case invalidTLEEpoch
+    case invalidTopocentricRange
 }
 
 struct SatellitePassService: SatellitePassProviding, Sendable {
@@ -40,22 +41,31 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
                 velocity: state.velocity,
                 date: date
             )
-            return topocentricLookAngle(ecef: ecef, observer: observer, date: date)
+            return try topocentricLookAngle(ecef: ecef, observer: observer, date: date)
         }
 
         var result: [SatellitePass] = []
         var previousDate = start
         var previous = try look(at: start)
-        var activeRise: LookAngle? = previous.elevationDegrees >= minimumElevation ? previous : nil
-        var activePeak: LookAngle? = activeRise
 
-        var date = start.addingTimeInterval(scanStep)
+        // A pass already above the requested elevation at `start` began outside the
+        // requested window. Do not fabricate a rise time by clipping it to `start`.
+        // Ignore that partial pass and begin reporting after it drops below the threshold.
+        var waitingForCurrentPassToEnd = previous.elevationDegrees >= minimumElevation
+        var activeRise: LookAngle?
+        var activePeak: LookAngle?
+
+        var date = min(start.addingTimeInterval(scanStep), end)
         while date <= end {
             let current = try look(at: date)
 
-            if activeRise == nil,
-               previous.elevationDegrees < minimumElevation,
-               current.elevationDegrees >= minimumElevation {
+            if waitingForCurrentPassToEnd {
+                if current.elevationDegrees < minimumElevation {
+                    waitingForCurrentPassToEnd = false
+                }
+            } else if activeRise == nil,
+                      previous.elevationDegrees < minimumElevation,
+                      current.elevationDegrees >= minimumElevation {
                 let riseDate = try refineCrossing(
                     lower: previousDate,
                     upper: date,
@@ -83,7 +93,6 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
                 )
                 let set = try look(at: setDate)
                 let peak = try refinePeak(
-                    around: activePeak?.date ?? previousDate,
                     boundedBy: rise.date...set.date,
                     look: look
                 )
@@ -97,15 +106,18 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
                 activePeak = nil
             }
 
+            if date == end { break }
             previousDate = date
             previous = current
-            date = date.addingTimeInterval(scanStep)
+            date = min(date.addingTimeInterval(scanStep), end)
         }
 
+        // Likewise, an active pass whose set occurs after `end` is intentionally omitted:
+        // the requested window does not contain a complete rise/culmination/set pass.
         return result
     }
 
-    private func topocentricLookAngle(ecef: Vector3D, observer: ObserverLocation, date: Date) -> LookAngle {
+    private func topocentricLookAngle(ecef: Vector3D, observer: ObserverLocation, date: Date) throws -> LookAngle {
         let lat = observer.latitude * .pi / 180
         let lon = observer.longitude * .pi / 180
         let altitudeKm = observer.altitudeMeters / 1000
@@ -129,9 +141,12 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
         let up = cosLat * cos(lon) * dx + cosLat * sin(lon) * dy + sinLat * dz
 
         let range = sqrt(east * east + north * north + up * up)
+        guard range.isFinite, range > 0 else { throw SatellitePassError.invalidTopocentricRange }
+
         var azimuth = atan2(east, north) * 180 / .pi
         if azimuth < 0 { azimuth += 360 }
-        let elevation = asin(up / range) * 180 / .pi
+        let normalizedUp = min(1.0, max(-1.0, up / range))
+        let elevation = asin(normalizedUp) * 180 / .pi
 
         return LookAngle(
             date: date,
@@ -160,12 +175,11 @@ struct SatellitePassService: SatellitePassProviding, Sendable {
     }
 
     private func refinePeak(
-        around center: Date,
         boundedBy bounds: ClosedRange<Date>,
         look: (Date) throws -> LookAngle
     ) throws -> LookAngle {
-        var low = max(bounds.lowerBound, center.addingTimeInterval(-scanStep))
-        var high = min(bounds.upperBound, center.addingTimeInterval(scanStep))
+        var low = bounds.lowerBound
+        var high = bounds.upperBound
 
         for _ in 0..<refinementIterations {
             let span = high.timeIntervalSince(low)
