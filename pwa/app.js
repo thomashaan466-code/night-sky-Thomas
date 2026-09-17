@@ -1,24 +1,390 @@
-const $=id=>document.getElementById(id);
-const FALLBACK={lat:51.4988,lon:3.6136,name:'Middelburg (fallback)'};
-const TLE_CACHE_KEY='nst-iss-tle-v1',TLE_FRESH_MS=2*3600e3,TLE_MAX_STALE_MS=24*3600e3;
-let state={loc:null,weather:null,iss:[],issStatus:'loading',issTleSource:null,aurora:null,moon:null};
-const fmt=t=>new Intl.DateTimeFormat('nl-NL',{hour:'2-digit',minute:'2-digit'}).format(t);
-const deg=r=>r*180/Math.PI;
-const dir=d=>['N','NO','O','ZO','Z','ZW','W','NW'][Math.round(((d%360)+360)%360/45)%8];
-async function json(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw Error(`${r.status}`);return r.json()}
-function getLocation(){return new Promise(resolve=>{if(!navigator.geolocation)return resolve(FALLBACK);navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lon:p.coords.longitude,name:'Jouw locatie'}),()=>resolve(FALLBACK),{enableHighAccuracy:true,timeout:7000,maximumAge:300000})})}
-async function loadWeather(l){const vars='cloud_cover,precipitation_probability,visibility,temperature_2m,is_day';const u=`https://api.open-meteo.com/v1/forecast?latitude=${l.lat}&longitude=${l.lon}&current=temperature_2m,is_day,cloud_cover&hourly=${vars}&forecast_days=2&timeformat=unixtime&timezone=GMT`;return json(u)}
-function weatherAt(w,date){const ts=date.getTime();let best=0,diff=Infinity;w.hourly.time.forEach((x,i)=>{const d=Math.abs(x*1000-ts);if(d<diff){diff=d;best=i}});return{cloud:w.hourly.cloud_cover[best],rain:w.hourly.precipitation_probability[best],vis:w.hourly.visibility[best],temp:w.hourly.temperature_2m[best],day:w.hourly.is_day[best]}}
-function sunAltitude(l,date){const o=new Astronomy.Observer(l.lat,l.lon,0),eq=Astronomy.Equator(Astronomy.Body.Sun,date,o,true,true);return Astronomy.Horizon(date,o,eq.ra,eq.dec,'normal').altitude}
-function loadMoon(l){const now=new Date(),o=new Astronomy.Observer(l.lat,l.lon,0),eq=Astronomy.Equator(Astronomy.Body.Moon,now,o,true,true),h=Astronomy.Horizon(now,o,eq.ra,eq.dec,'normal'),phase=Astronomy.Illumination(Astronomy.Body.Moon,now);return{alt:h.altitude,az:h.azimuth,illum:phase.phase_fraction*100}}
-function readTLECache(){try{const x=JSON.parse(localStorage.getItem(TLE_CACHE_KEY));if(x&&Array.isArray(x.lines)&&x.lines.length===2&&Number.isFinite(x.savedAt))return x}catch{}return null}
-function saveTLECache(lines){try{localStorage.setItem(TLE_CACHE_KEY,JSON.stringify({lines,savedAt:Date.now()}))}catch{}}
-async function loadTLE(){const cached=readTLECache(),age=cached?Date.now()-cached.savedAt:Infinity;if(age<TLE_FRESH_MS)return{lines:cached.lines,source:'cache'};try{const r=await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE',{cache:'no-store'});if(!r.ok)throw Error(`CelesTrak ${r.status}`);const a=(await r.text()).trim().split(/\r?\n/),lines=[a[a.length-2],a[a.length-1]];if(!lines[0]?.startsWith('1 ')||!lines[1]?.startsWith('2 '))throw Error('Ongeldige TLE');saveTLECache(lines);return{lines,source:'live'}}catch(e){if(cached&&age<TLE_MAX_STALE_MS)return{lines:cached.lines,source:'stale-cache'};throw e}}
-function satLook(satrec,l,date){const pv=satellite.propagate(satrec,date);if(!pv.position)return null;const gmst=satellite.gstime(date),gd={longitude:l.lon*Math.PI/180,latitude:l.lat*Math.PI/180,height:0},ecf=satellite.eciToEcf(pv.position,gmst),look=satellite.ecfToLookAngles(gd,ecf);return{alt:deg(look.elevation),az:(deg(look.azimuth)+360)%360,ecf}}
-function solarPositionEcf(date){const y=date.getUTCFullYear(),start=Date.UTC(y,0,0),day=(date.getTime()-start)/86400000,h=date.getUTCHours()+date.getUTCMinutes()/60+date.getUTCSeconds()/3600,days=((y%4===0&&y%100!==0)||y%400===0)?366:365,g=2*Math.PI/days*(day-1+(h-12)/24),eq=229.18*(0.000075+0.001868*Math.cos(g)-0.032077*Math.sin(g)-0.014615*Math.cos(2*g)-0.040849*Math.sin(2*g)),dec=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g),gha=((h*60+eq)/4-180),subLon=-gha*Math.PI/180,AU=149597870.7,q=AU*Math.cos(dec);return{x:q*Math.cos(subLon),y:q*Math.sin(subLon),z:AU*Math.sin(dec)}}
-function illumination(ecf,date){const sun=solarPositionEcf(date),toEarth={x:-ecf.x,y:-ecf.y,z:-ecf.z},toSun={x:sun.x-ecf.x,y:sun.y-ecf.y,z:sun.z-ecf.z},len=v=>Math.hypot(v.x,v.y,v.z),ed=len(toEarth),sd=len(toSun);if(ed<=6378.137||sd<=695700)return'unknown';const clamp=x=>Math.max(-1,Math.min(1,x)),er=Math.asin(clamp(6378.137/ed)),sr=Math.asin(clamp(695700/sd)),sep=Math.acos(clamp((toEarth.x*toSun.x+toEarth.y*toSun.y+toEarth.z*toSun.z)/(ed*sd)));if(er>sr&&sep<er-sr)return'umbra';if(sep<er+sr)return'penumbra';return'sunlit'}
-async function loadISS(l){const tle=await loadTLE(),satrec=satellite.twoline2satrec(...tle.lines),start=Date.now(),end=start+24*3600e3,step=20e3,passes=[];let active=null;for(let t=start;t<=end;t+=step){const date=new Date(t),look=satLook(satrec,l,date);if(!look)continue;const above=look.alt>=10;if(above&&!active)active={start:date,maxAlt:look.alt,maxAz:look.az,viewingCandidate:false};if(above&&active){if(look.alt>active.maxAlt){active.maxAlt=look.alt;active.maxAz=look.az}if(sunAltitude(l,date)<-6&&illumination(look.ecf,date)==='sunlit')active.viewingCandidate=true}if(!above&&active){active.end=date;if(active.viewingCandidate)passes.push(active);active=null}}return{passes,tleSource:tle.source}}
-async function loadAurora(l){try{const d=await json('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json'),coords=d.coordinates||[];let best=0;for(const p of coords){const lon=p[0]>180?p[0]-360:p[0],lat=p[1],v=p[2],dist=Math.hypot((lat-l.lat)*1.2,(lon-l.lon)*Math.cos(l.lat*Math.PI/180));if(dist<4&&v>best)best=v}return{value:best,time:d['Forecast Time']||d['Observation Time']||null}}catch{return null}}
-function render(){const l=state.loc,w=state.weather,now=new Date(),wa=weatherAt(w,now),sa=sunAltitude(l,now);$('location').textContent=l.name;$('darkness').textContent=sa<-18?'Astronomisch donker':sa<-6?'Schemering':sa<0?'Lichte schemering':'Daglicht';$('weather').textContent=`${Math.round(wa.cloud)}% bewolking · ${Math.round(wa.temp)}°C`;const m=state.moon;$('moon').textContent=`${Math.round(m.illum)}% verlicht`;$('moonSub').textContent=m.alt>0?`${Math.round(m.alt)}° hoog richting ${dir(m.az)}`:'Onder de horizon';if(state.issStatus==='error'){$('iss').textContent='ISS-bron niet beschikbaar';$('issSub').textContent='CelesTrak-data kon niet betrouwbaar worden geladen. Er wordt daarom geen passageadvies gegeven.';$('iss').className=''}else if(state.iss.length){const p=state.iss[0],pw=weatherAt(w,p.start),src=state.issTleSource==='stale-cache'?' · oudere cachedata':'';$('iss').textContent=`${fmt(p.start)} · max ${Math.round(p.maxAlt)}°`;$('issSub').textContent=`Kijkkandidaat richting ${dir(p.maxAz)} · zonverlicht volgens schaduwmodel · ${Math.round(pw.cloud)}% bewolking verwacht${src}. Helderheid is niet berekend.`;$('iss').className='good'}else{$('iss').textContent='Geen ISS-kijkkandidaat';$('issSub').textContent='Geen passage ≥10° gevonden die tegelijk zonverlicht is bij voldoende donkere hemel.';$('iss').className=''}if(state.aurora){const a=state.aurora.value;$('aurora').textContent=a>=20?'Verhoogd signaal':a>=8?'Zwak signaal':'Geen lokaal signaal';$('auroraSub').textContent=`OVATION nabij jouw locatie: ${Math.round(a)}%. Indicatief, geen zichtbaarheidsgarantie.`}else{$('aurora').textContent='Auroradata niet beschikbaar';$('auroraSub').textContent='Zonder actuele NOAA-data wordt geen aurora-advies gegeven.'}const iss=state.iss[0];let verdict='Geen sterke reden om nu naar buiten te gaan',reason='Ik zie nu geen combinatie van een bijzonder event en goede omstandigheden.',cls='';if(iss&&iss.start-now<45*60000){const pw=weatherAt(w,iss.start);if(pw.cloud<55&&pw.rain<35&&state.issTleSource!=='stale-cache'){verdict='ISS-kans binnenkort';reason=`Rond ${fmt(iss.start)} is er een ISS-kijkkandidaat. Verwacht: ${Math.round(pw.cloud)}% bewolking en ${Math.round(pw.rain)}% regenkans. Helderheid is niet berekend, dus dit is geen zichtbaarheidsgarantie.`;cls='good'}}else if(state.aurora&&state.aurora.value>=20&&sa<-6&&wa.cloud<45){verdict='Aurorasignaal — kijkcondities controleren';reason='NOAA toont een verhoogd lokaal OVATION-signaal en de hemel is voldoende donker. Dit blijft probabilistisch.';cls='warn'}$('verdict').textContent=verdict;$('verdict').className=cls;$('reason').textContent=reason;$('updated').textContent=`Bijgewerkt ${fmt(now)} · bronfouten worden nooit als positief advies geïnterpreteerd.`;const rows=[];for(let h=0;h<6;h++){const d=new Date(now.getTime()+h*3600e3),x=weatherAt(w,d);rows.push(`<div class="timeline-row"><span>${fmt(d)}</span><span>${Math.round(x.cloud)}% ☁︎ · ${Math.round(x.rain)}% regen</span></div>`)}$('timeline').innerHTML=rows.join('')}
-async function refresh(){try{$('verdict').textContent='Hemel wordt gecontroleerd';state.loc=await getLocation();const [w,issResult,a]=await Promise.all([loadWeather(state.loc),loadISS(state.loc).then(x=>({ok:true,...x})).catch(e=>({ok:false,error:e})),loadAurora(state.loc)]);state.weather=w;if(issResult.ok){state.iss=issResult.passes;state.issStatus='ok';state.issTleSource=issResult.tleSource}else{state.iss=[];state.issStatus='error';state.issTleSource=null;console.error(issResult.error)}state.aurora=a;state.moon=loadMoon(state.loc);render()}catch(e){$('verdict').textContent='Live controle niet volledig gelukt';$('reason').textContent='Vernieuw de pagina. Zonder actuele brondata geeft Night Sky Thomas geen positief kijkadvies.';console.error(e)}}
-$('locate').addEventListener('click',refresh);if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});refresh();
+const $ = id => document.getElementById(id);
+const FALLBACK = { lat: 51.4988, lon: 3.6136, name: 'Middelburg (fallback)' };
+const TLE_CACHE_KEY = 'nst-iss-tle-v1';
+const TLE_FRESH_MS = 2 * 3600e3;
+const TLE_MAX_STALE_MS = 24 * 3600e3;
+const { bestForecastPoint, illumination, weatherAt } = NightSkyCore;
+
+let state = {
+  loc: null,
+  weather: null,
+  iss: [],
+  issStatus: 'loading',
+  issTleSource: null,
+  aurora: null,
+  moon: null,
+};
+
+const fmt = date => new Intl.DateTimeFormat('nl-NL', {
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(date);
+
+const deg = radians => radians * 180 / Math.PI;
+
+function direction(degrees) {
+  const directions = ['N', 'NO', 'O', 'ZO', 'Z', 'ZW', 'W', 'NW'];
+  return directions[Math.round(((degrees % 360) + 360) % 360 / 45) % 8];
+}
+
+async function json(url) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`${response.status}`);
+  return response.json();
+}
+
+function getLocation() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(FALLBACK);
+    navigator.geolocation.getCurrentPosition(
+      position => resolve({
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+        name: 'Jouw locatie',
+      }),
+      () => resolve(FALLBACK),
+      { enableHighAccuracy: true, timeout: 7000, maximumAge: 300000 }
+    );
+  });
+}
+
+async function loadWeather(location) {
+  const variables = 'cloud_cover,precipitation_probability,visibility,temperature_2m,is_day';
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=temperature_2m,is_day,cloud_cover&hourly=${variables}&forecast_days=2&timeformat=unixtime&timezone=GMT`;
+  return json(url);
+}
+
+function sunAltitude(location, date) {
+  const observer = new Astronomy.Observer(location.lat, location.lon, 0);
+  const equatorial = Astronomy.Equator(Astronomy.Body.Sun, date, observer, true, true);
+  return Astronomy.Horizon(date, observer, equatorial.ra, equatorial.dec, 'normal').altitude;
+}
+
+function loadMoon(location) {
+  const now = new Date();
+  const observer = new Astronomy.Observer(location.lat, location.lon, 0);
+  const equatorial = Astronomy.Equator(Astronomy.Body.Moon, now, observer, true, true);
+  const horizontal = Astronomy.Horizon(now, observer, equatorial.ra, equatorial.dec, 'normal');
+  const phase = Astronomy.Illumination(Astronomy.Body.Moon, now);
+  return {
+    altitude: horizontal.altitude,
+    azimuth: horizontal.azimuth,
+    illuminatedPercent: phase.phase_fraction * 100,
+  };
+}
+
+function asDate(astroTime) {
+  if (!astroTime) return null;
+  if (astroTime.date instanceof Date) return astroTime.date;
+  return new Date(astroTime.date || astroTime);
+}
+
+function nextDarkWindow(location, weather, now = new Date()) {
+  const observer = new Astronomy.Observer(location.lat, location.lon, 0);
+  const currentAltitude = sunAltitude(location, now);
+  const dusk = currentAltitude < -6
+    ? now
+    : asDate(Astronomy.SearchAltitude(Astronomy.Body.Sun, observer, -1, now, 2, -6));
+
+  if (!dusk) return null;
+  const dawnSearchStart = new Date(dusk.getTime() + 60000);
+  const dawn = asDate(Astronomy.SearchAltitude(
+    Astronomy.Body.Sun,
+    observer,
+    1,
+    dawnSearchStart,
+    2,
+    -6
+  ));
+  if (!dawn || dawn <= dusk) return null;
+
+  const best = bestForecastPoint(weather, dusk, dawn);
+  return best ? { dusk, dawn, best } : null;
+}
+
+function readTLECache() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(TLE_CACHE_KEY));
+    if (cached && Array.isArray(cached.lines) && cached.lines.length === 2 && Number.isFinite(cached.savedAt)) {
+      return cached;
+    }
+  } catch {}
+  return null;
+}
+
+function saveTLECache(lines) {
+  try {
+    localStorage.setItem(TLE_CACHE_KEY, JSON.stringify({ lines, savedAt: Date.now() }));
+  } catch {}
+}
+
+async function loadTLE() {
+  const cached = readTLECache();
+  const age = cached ? Date.now() - cached.savedAt : Infinity;
+  if (age < TLE_FRESH_MS) return { lines: cached.lines, source: 'cache' };
+
+  try {
+    const response = await fetch(
+      'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE',
+      { cache: 'no-store' }
+    );
+    if (!response.ok) throw new Error(`CelesTrak ${response.status}`);
+    const rows = (await response.text()).trim().split(/\r?\n/);
+    const lines = [rows[rows.length - 2], rows[rows.length - 1]];
+    if (!lines[0]?.startsWith('1 ') || !lines[1]?.startsWith('2 ')) throw new Error('Ongeldige TLE');
+    saveTLECache(lines);
+    return { lines, source: 'live' };
+  } catch (error) {
+    if (cached && age < TLE_MAX_STALE_MS) return { lines: cached.lines, source: 'stale-cache' };
+    throw error;
+  }
+}
+
+function satelliteLook(satrec, location, date) {
+  const positionVelocity = satellite.propagate(satrec, date);
+  if (!positionVelocity.position) return null;
+
+  const siderealTime = satellite.gstime(date);
+  const observer = {
+    longitude: location.lon * Math.PI / 180,
+    latitude: location.lat * Math.PI / 180,
+    height: 0,
+  };
+  const ecf = satellite.eciToEcf(positionVelocity.position, siderealTime);
+  const look = satellite.ecfToLookAngles(observer, ecf);
+  return {
+    altitude: deg(look.elevation),
+    azimuth: (deg(look.azimuth) + 360) % 360,
+    ecf,
+  };
+}
+
+async function loadISS(location) {
+  const tle = await loadTLE();
+  const satrec = satellite.twoline2satrec(...tle.lines);
+  const start = Date.now();
+  const end = start + 24 * 3600e3;
+  const step = 20e3;
+  const passes = [];
+  let active = null;
+
+  for (let time = start; time <= end; time += step) {
+    const date = new Date(time);
+    const look = satelliteLook(satrec, location, date);
+    if (!look) continue;
+
+    const aboveMinimum = look.altitude >= 10;
+    if (aboveMinimum && !active) {
+      active = {
+        start: date,
+        maxAltitude: look.altitude,
+        maxAzimuth: look.azimuth,
+        viewingCandidate: false,
+      };
+    }
+
+    if (aboveMinimum && active) {
+      if (look.altitude > active.maxAltitude) {
+        active.maxAltitude = look.altitude;
+        active.maxAzimuth = look.azimuth;
+      }
+      if (sunAltitude(location, date) < -6 && illumination(look.ecf, date) === 'sunlit') {
+        active.viewingCandidate = true;
+      }
+    }
+
+    if (!aboveMinimum && active) {
+      active.end = date;
+      if (active.viewingCandidate) passes.push(active);
+      active = null;
+    }
+  }
+
+  return { passes, tleSource: tle.source };
+}
+
+async function loadAurora(location) {
+  try {
+    const data = await json('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json');
+    const coordinates = data.coordinates || [];
+    let best = 0;
+    for (const point of coordinates) {
+      const longitude = point[0] > 180 ? point[0] - 360 : point[0];
+      const latitude = point[1];
+      const value = point[2];
+      const distance = Math.hypot(
+        (latitude - location.lat) * 1.2,
+        (longitude - location.lon) * Math.cos(location.lat * Math.PI / 180)
+      );
+      if (distance < 4 && value > best) best = value;
+    }
+    return { value: best, time: data['Forecast Time'] || data['Observation Time'] || null };
+  } catch {
+    return null;
+  }
+}
+
+function setSourceState(id, label, status) {
+  const element = $(id);
+  element.textContent = `${label} ${status === 'ok' ? '✓' : '—'}`;
+  element.className = `source ${status}`;
+}
+
+function renderNightWindow(location, weather, now) {
+  const window = nextDarkWindow(location, weather, now);
+  if (!window) {
+    $('window').textContent = 'Nog niet berekend';
+    $('windowSub').textContent = 'Er is geen passend donker venster binnen de actuele weersverwachting.';
+    return;
+  }
+
+  const { dusk, dawn, best } = window;
+  const forecast = best.forecast;
+  const poor = forecast.cloud >= 85 || forecast.rain >= 70;
+  $('window').textContent = poor ? `Minste bewolking rond ${fmt(best.date)}` : `Beste kans rond ${fmt(best.date)}`;
+  $('window').className = poor ? '' : 'good';
+  $('windowSub').textContent = `Donkere periode ${fmt(dusk)}–${fmt(dawn)} · ${Math.round(forecast.cloud)}% bewolking · ${Math.round(forecast.rain)}% regenkans.`;
+}
+
+function render() {
+  const location = state.loc;
+  const weather = state.weather;
+  const now = new Date();
+  const currentWeather = weatherAt(weather, now);
+  if (!currentWeather) throw new Error('Actuele weersverwachting ontbreekt');
+
+  const solarAltitude = sunAltitude(location, now);
+  $('location').textContent = location.name;
+  $('darkness').textContent = solarAltitude < -18
+    ? 'Astronomisch donker'
+    : solarAltitude < -6
+      ? 'Schemering'
+      : solarAltitude < 0
+        ? 'Lichte schemering'
+        : 'Daglicht';
+  $('weather').textContent = `${Math.round(currentWeather.cloud)}% bewolking · ${Math.round(currentWeather.temperature)}°C`;
+
+  const moon = state.moon;
+  $('moon').textContent = `${Math.round(moon.illuminatedPercent)}% verlicht`;
+  $('moonSub').textContent = moon.altitude > 0
+    ? `${Math.round(moon.altitude)}° hoog richting ${direction(moon.azimuth)}`
+    : 'Onder de horizon';
+
+  if (state.issStatus === 'error') {
+    $('iss').textContent = 'ISS-bron niet beschikbaar';
+    $('issSub').textContent = 'CelesTrak-data kon niet betrouwbaar worden geladen. Er wordt daarom geen passageadvies gegeven.';
+    $('iss').className = '';
+  } else if (state.iss.length) {
+    const pass = state.iss[0];
+    const passWeather = weatherAt(weather, pass.start);
+    const sourceNote = state.issTleSource === 'stale-cache' ? ' · oudere cachedata' : '';
+    $('iss').textContent = `${fmt(pass.start)} · max ${Math.round(pass.maxAltitude)}°`;
+    $('issSub').textContent = passWeather
+      ? `Kijkkandidaat richting ${direction(pass.maxAzimuth)} · zonverlicht volgens schaduwmodel · ${Math.round(passWeather.cloud)}% bewolking verwacht${sourceNote}. Helderheid is niet berekend.`
+      : `Kijkkandidaat richting ${direction(pass.maxAzimuth)} · zonverlicht volgens schaduwmodel${sourceNote}. Geen passend weermoment beschikbaar; helderheid is niet berekend.`;
+    $('iss').className = 'good';
+  } else {
+    $('iss').textContent = 'Geen ISS-kijkkandidaat';
+    $('issSub').textContent = 'Geen passage ≥10° gevonden die tegelijk zonverlicht is bij voldoende donkere hemel.';
+    $('iss').className = '';
+  }
+
+  if (state.aurora) {
+    const value = state.aurora.value;
+    $('aurora').textContent = value >= 20 ? 'Verhoogd signaal' : value >= 8 ? 'Zwak signaal' : 'Geen lokaal signaal';
+    $('auroraSub').textContent = `OVATION nabij jouw locatie: ${Math.round(value)}%. Indicatief, geen zichtbaarheidsgarantie.`;
+  } else {
+    $('aurora').textContent = 'Auroradata niet beschikbaar';
+    $('auroraSub').textContent = 'Zonder actuele NOAA-data wordt geen aurora-advies gegeven.';
+  }
+
+  renderNightWindow(location, weather, now);
+
+  const firstPass = state.iss[0];
+  let verdict = 'Geen sterke reden om nu naar buiten te gaan';
+  let reason = 'Ik zie nu geen combinatie van een bijzonder event en goede omstandigheden.';
+  let verdictClass = '';
+
+  if (firstPass && firstPass.start - now < 45 * 60000) {
+    const passWeather = weatherAt(weather, firstPass.start);
+    if (passWeather && passWeather.cloud < 55 && passWeather.rain < 35 && state.issTleSource !== 'stale-cache') {
+      verdict = 'ISS-kans binnenkort';
+      reason = `Rond ${fmt(firstPass.start)} is er een ISS-kijkkandidaat. Verwacht: ${Math.round(passWeather.cloud)}% bewolking en ${Math.round(passWeather.rain)}% regenkans. Helderheid is niet berekend, dus dit is geen zichtbaarheidsgarantie.`;
+      verdictClass = 'good';
+    }
+  } else if (state.aurora && state.aurora.value >= 20 && solarAltitude < -6 && currentWeather.cloud < 45) {
+    verdict = 'Aurorasignaal — kijkcondities controleren';
+    reason = 'NOAA toont een verhoogd lokaal OVATION-signaal en de hemel is voldoende donker. Dit blijft probabilistisch.';
+    verdictClass = 'warn';
+  }
+
+  $('verdict').textContent = verdict;
+  $('verdict').className = verdictClass;
+  $('reason').textContent = reason;
+  $('updated').textContent = `Bijgewerkt ${fmt(now)} · bronfouten worden nooit als positief advies geïnterpreteerd.`;
+
+  const rows = [];
+  for (let hour = 0; hour < 6; hour += 1) {
+    const date = new Date(now.getTime() + hour * 3600e3);
+    const forecast = weatherAt(weather, date);
+    if (!forecast) continue;
+    rows.push(`<div class="timeline-row"><span>${fmt(date)}</span><span>${Math.round(forecast.cloud)}% ☁︎ · ${Math.round(forecast.rain)}% regen</span></div>`);
+  }
+  $('timeline').innerHTML = rows.length ? rows.join('') : '<p>Geen passende uurverwachting beschikbaar.</p>';
+
+  setSourceState('sourceWeather', 'OPEN-METEO', 'ok');
+  setSourceState('sourceISS', 'CELESTRAK', state.issStatus === 'ok' ? 'ok' : 'error');
+  setSourceState('sourceAurora', 'NOAA', state.aurora ? 'ok' : 'error');
+}
+
+function setLoading(isLoading) {
+  $('locate').disabled = isLoading;
+  $('locate').setAttribute('aria-busy', String(isLoading));
+  $('locate').classList.toggle('loading', isLoading);
+  if (isLoading) {
+    $('verdict').textContent = 'Hemel wordt gecontroleerd';
+    $('reason').textContent = 'Live bronnen en het eerstvolgende donkere kijkvenster worden bijgewerkt.';
+  }
+}
+
+async function refresh() {
+  setLoading(true);
+  try {
+    state.loc = await getLocation();
+    const [weather, issResult, aurora] = await Promise.all([
+      loadWeather(state.loc),
+      loadISS(state.loc)
+        .then(result => ({ ok: true, ...result }))
+        .catch(error => ({ ok: false, error })),
+      loadAurora(state.loc),
+    ]);
+
+    state.weather = weather;
+    if (issResult.ok) {
+      state.iss = issResult.passes;
+      state.issStatus = 'ok';
+      state.issTleSource = issResult.tleSource;
+    } else {
+      state.iss = [];
+      state.issStatus = 'error';
+      state.issTleSource = null;
+      console.error(issResult.error);
+    }
+    state.aurora = aurora;
+    state.moon = loadMoon(state.loc);
+    render();
+  } catch (error) {
+    $('verdict').textContent = 'Live controle niet volledig gelukt';
+    $('reason').textContent = 'Vernieuw de pagina. Zonder actuele brondata geeft Night Sky Thomas geen positief kijkadvies.';
+    setSourceState('sourceWeather', 'OPEN-METEO', 'error');
+    setSourceState('sourceISS', 'CELESTRAK', 'error');
+    setSourceState('sourceAurora', 'NOAA', 'error');
+    console.error(error);
+  } finally {
+    setLoading(false);
+  }
+}
+
+$('locate').addEventListener('click', refresh);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+refresh();

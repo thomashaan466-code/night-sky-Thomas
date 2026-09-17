@@ -13,6 +13,7 @@ Dit is de bewust kleine hobbyversie van Night Sky Thomas. De bestaande native iO
 - haalt actuele ISS GP/TLE-data op bij CelesTrak en propageert die met satellite.js
 - telt een ISS-pass niet automatisch als zichtbaar: minimale hoogte, donkere/schemerige waarnemershemel en een eenvoudige Earth-shadow-test worden gecombineerd
 - toont NOAA SWPC OVATION als indicatieve aurorasignalering
+- zoekt de beste weerskans binnen de eerstvolgende donkere periode (zon lager dan −6°)
 - geeft een conservatief 'naar buiten'-advies en een knop naar Stellarium Web
 
 ## Lokaal testen
@@ -24,6 +25,12 @@ python3 -m http.server 8080
 ```
 
 Open daarna `http://localhost:8080`.
+
+Voer de deterministische kerncontroles uit met:
+
+```sh
+node --test tests/*.test.js
+```
 
 ## Publiceren
 Een push naar `pwa-hobby` publiceert de map `pwa/` automatisch via GitHub Pages. De map is volledig statisch en kan ook op iedere andere HTTPS static host worden geplaatst.
