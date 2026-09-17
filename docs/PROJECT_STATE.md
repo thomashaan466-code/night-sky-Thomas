@@ -22,7 +22,7 @@ Detailed preserved-work inventory: `docs/RECOVERY_INVENTORY.md`
 
 The recovery branch was created from the tested PWA improvement head. During recovery it is the only branch on which consolidation work should be performed. Do not start new work from the older `pwa-hobby` or agent coordination branches.
 
-`main` remains the stable historical branch until recovery is validated and deliberately promoted. `develop` contains substantial native/astronomy work and remains an important reference; it must not be force-reset or discarded.
+`main` remains the stable historical branch until recovery is validated and deliberately promoted. The historical main-only deployment commits have been explicitly reconciled into recovery; `main` is now an ancestor of recovery rather than a divergent line. `develop` contains substantial native/astronomy work and remains an important reference; it must not be force-reset or discarded.
 
 ## Reliability rules
 
@@ -48,9 +48,9 @@ No routine heartbeat protocol is required. When handing work to another agent, l
 
 ## CI and deployment during recovery
 
-`PWA checks` runs on the recovery branch and is prepared for future `develop`/`main` integration. The iOS workflow is manual-only. The Pages workflow temporarily deploys the recovery branch so the recovery baseline can be checked as a real HTTPS PWA before promotion.
+`PWA checks` runs on the recovery branch and is prepared for future `develop`/`main` integration. The iOS workflow is manual-only.
 
-After recovery is accepted, change the Pages deployment source to the final stable branch and remove obsolete deployment workflows from the stable history through a reviewed integration PR.
+GitHub Pages is production-only and deploys from `main`. A recovery-branch deployment was attempted and rejected by the repository's Pages environment before any job steps ran, so recovery is not allowed to pretend that a preview deployment succeeded. Real HTTPS/device acceptance remains tracked in #18 and must be performed against an actually deployed build. The stable path contains one Pages workflow; the old Jekyll/static deployment workflows are removed by the recovery integration.
 
 ## Preserved native assets
 
