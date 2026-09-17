@@ -7,19 +7,25 @@ backend en er staan geen API-sleutels in de iOS-app.
 
 ## Eenmalige handmatige setup
 
-Een maintainer voert deze stappen één keer uit in GitHub. Deze repository maakt
-bewust geen externe resources of Project-ID's automatisch aan.
+De repository gebruikt het GitHub Project **NightSkyThomas Coordination** en
+de labels hieronder. Controleer na een fork of nieuwe repository dat deze
+resources bestaan; gebruik geen hardcoded numeric Project-ID in code.
 
-1. Maak een GitHub Project (Board) voor `NightSkyThomas` met kolommen
-   `Backlog`, `Ready`, `In progress`, `Review`, `Done` en `Blocked`.
-2. Maak de labels `coordination`, `agent:claude`, `agent:chatgpt`,
+1. Koppel **NightSkyThomas Coordination** aan deze repository. Gebruik voor
+   een nieuwe repository een Board met kolommen `Backlog`, `Ready`,
+   `In progress`, `Review`, `Done` en `Blocked`.
+2. Controleer de labels `coordination`, `agent:claude`, `agent:chatgpt`,
    `status:claimed`, `status:blocked`, `status:review` en `scope:docs`.
    Bestaande labels mogen dezelfde betekenis houden; dupliceer ze niet.
-3. Koppel het Project aan de repository en voeg nieuwe issues handmatig of via
+3. Voeg nieuwe issues handmatig of via
    de Project-automation toe. Gebruik geen hardcoded numeric Project-ID in code.
 4. Geef iedere agent alleen de GitHub/MCP-rechten die nodig zijn: issues lezen
    en bijwerken, branches maken, en pull requests openen. Gebruik liever een
    persoonlijke of GitHub App-token buiten de app dan een token in deze repo.
+
+De bestaande projectstatus gebruikt de standaard GitHub-opties `Todo`,
+`In Progress` en `Done`. De canonieke detailstatus blijft in de issuevelden;
+gebruik labels en issuecomments voor `Blocked`, `Review` en heartbeat-informatie.
 
 ## Werkstroom
 
