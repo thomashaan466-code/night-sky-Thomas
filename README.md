@@ -10,7 +10,9 @@ De PWA in `pwa/` is het primaire product. Het eerste doel is een betrouwbare HTT
 
 De bestaande Swift/SwiftUI-code blijft behouden als experimentele/reference-lijn. Daarin zit waardevol werk voor onder andere satellietberekeningen en databronnen, maar native iOS is tijdens de huidige recovery niet de primaire delivery-route.
 
-Zie `docs/PROJECT_STATE.md` voor de actuele technische source of truth en issue #15 voor het recovery-plan.
+**Actieve herstelbranch:** `recovery/clean-pwa-baseline`. Start tijdens de recovery geen nieuw werk vanaf `pwa-hobby` of de oude agent/coördinatiebranches.
+
+Zie `docs/PROJECT_STATE.md` voor de actuele technische source of truth, `docs/RECOVERY_INVENTORY.md` voor wat uit eerdere lijnen wordt behouden en issue #15 voor het recovery-plan.
 
 ## Wat de huidige PWA doet
 
