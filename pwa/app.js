@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const FALLBACK = { lat: 51.4988, lon: 3.6136, name: 'Middelburg (fallback)' };
 const TLE_CACHE_KEY = 'nst-iss-tle-v1';
+const SNAPSHOT_KEY = 'nst-last-sky-check-v1';
 const TLE_FRESH_MS = 2 * 3600e3;
 const TLE_MAX_STALE_MS = 24 * 3600e3;
 const { bestForecastPoint, illumination, weatherAt } = NightSkyCore;
@@ -116,6 +117,51 @@ function saveTLECache(lines) {
   try {
     localStorage.setItem(TLE_CACHE_KEY, JSON.stringify({ lines, savedAt: Date.now() }));
   } catch {}
+}
+
+function saveSnapshot() {
+  try {
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      state,
+    }));
+  } catch {}
+}
+
+function readSnapshot() {
+  try {
+    const snapshot = JSON.parse(localStorage.getItem(SNAPSHOT_KEY));
+    if (!snapshot?.state?.loc || !snapshot.state.weather || !Number.isFinite(snapshot.savedAt)) return null;
+    const cachedState = snapshot.state;
+    cachedState.iss = (cachedState.iss || []).map(pass => ({
+      ...pass,
+      start: new Date(pass.start),
+      end: pass.end ? new Date(pass.end) : undefined,
+    }));
+    cachedState.moon = cachedState.moon || null;
+    return { savedAt: snapshot.savedAt, state: cachedState };
+  } catch {
+    return null;
+  }
+}
+
+function renderConnectionStatus({ offline = !navigator.onLine, savedAt = null } = {}) {
+  const element = $('connectionStatus');
+  if (offline) {
+    element.hidden = false;
+    element.className = 'connection-status offline';
+    element.textContent = savedAt
+      ? `Offline · laatste controle ${fmt(new Date(savedAt))}. Dit is opgeslagen informatie, geen live advies.`
+      : 'Offline · er is nog geen opgeslagen hemelcheck. Maak verbinding om gegevens te laden.';
+    return;
+  }
+  if (savedAt) {
+    element.hidden = false;
+    element.className = 'connection-status';
+    element.textContent = `Opgeslagen controle van ${fmt(new Date(savedAt))} · vernieuw voor actuele gegevens.`;
+    return;
+  }
+  element.hidden = true;
 }
 
 async function loadTLE() {
@@ -349,6 +395,7 @@ function setLoading(isLoading) {
 
 async function refresh() {
   setLoading(true);
+  renderConnectionStatus();
   try {
     state.loc = await getLocation();
     const [weather, issResult, aurora] = await Promise.all([
@@ -372,13 +419,25 @@ async function refresh() {
     }
     state.aurora = aurora;
     state.moon = loadMoon(state.loc);
+    saveSnapshot();
     render();
   } catch (error) {
-    $('verdict').textContent = 'Live controle niet volledig gelukt';
-    $('reason').textContent = 'Vernieuw de pagina. Zonder actuele brondata geeft Night Sky Thomas geen positief kijkadvies.';
-    setSourceState('sourceWeather', 'OPEN-METEO', 'error');
-    setSourceState('sourceISS', 'CELESTRAK', 'error');
-    setSourceState('sourceAurora', 'NOAA', 'error');
+    const snapshot = readSnapshot();
+    if (snapshot) {
+      state = snapshot.state;
+      state.issStatus = 'error';
+      state.issTleSource = null;
+      renderConnectionStatus({ offline: !navigator.onLine, savedAt: snapshot.savedAt });
+      render();
+      $('updated').textContent = `Opgeslagen controle ${fmt(new Date(snapshot.savedAt))} · live vernieuwing mislukt.`;
+    } else {
+      $('verdict').textContent = 'Live controle niet gelukt';
+      $('reason').textContent = 'Maak verbinding en vernieuw. Zonder actuele brondata geeft Night Sky Thomas geen positief kijkadvies.';
+      renderConnectionStatus();
+      setSourceState('sourceWeather', 'OPEN-METEO', 'error');
+      setSourceState('sourceISS', 'CELESTRAK', 'error');
+      setSourceState('sourceAurora', 'NOAA', 'error');
+    }
     console.error(error);
   } finally {
     setLoading(false);
@@ -386,5 +445,18 @@ async function refresh() {
 }
 
 $('locate').addEventListener('click', refresh);
+window.addEventListener('online', refresh);
+window.addEventListener('offline', () => {
+  const snapshot = readSnapshot();
+  renderConnectionStatus({ offline: true, savedAt: snapshot?.savedAt });
+});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if (!navigator.onLine) {
+  const snapshot = readSnapshot();
+  if (snapshot) {
+    state = snapshot.state;
+    renderConnectionStatus({ offline: true, savedAt: snapshot.savedAt });
+    render();
+  }
+}
 refresh();

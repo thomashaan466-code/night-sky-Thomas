@@ -43,6 +43,23 @@ header {
   letter-spacing: 0.16em;
 }
 
+.connection-status {
+  margin: 0 2px 12px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 212, 121, 0.35);
+  border-radius: 14px;
+  background: rgba(82, 61, 20, 0.42);
+  color: #ffe3a3;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.connection-status.offline {
+  border-color: rgba(255, 139, 139, 0.4);
+  background: rgba(82, 30, 38, 0.46);
+  color: #ffc1c1;
+}
+
 h1 {
   margin: 0;
   font-size: 28px;

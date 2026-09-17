@@ -38,6 +38,14 @@ test('weatherAt refuses forecasts outside the available time window', () => {
   assert.equal(weatherAt(weather, new Date('2026-09-18T02:00:00Z')), null);
 });
 
+test('weatherAt handles a forecast with missing optional values without inventing data', () => {
+  const weather = forecast([{ time: new Date('2026-09-17T18:00:00Z'), cloud: 20, rain: 0 }]);
+  const result = weatherAt(weather, new Date('2026-09-17T18:15:00Z'));
+  assert.equal(result.visibility, 10000);
+  assert.equal(result.temperature, 10);
+  assert.equal(result.isDay, 0);
+});
+
 test('bestForecastPoint prefers the clearest dry slot', () => {
   const start = new Date('2026-09-17T20:00:00Z');
   const weather = forecast([

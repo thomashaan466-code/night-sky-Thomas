@@ -2,7 +2,7 @@
 
 ## Doel
 
-De PWA beantwoordt betrouwbaar één vraag: **moet ik nu of tijdens de eerstvolgende donkere periode naar buiten?** De native iOS-code blijft een aparte ontwikkellijn totdat een volledige Xcode-omgeving en fysieke iPhone-validatie beschikbaar zijn.
+De PWA beantwoordt betrouwbaar één vraag: **moet ik nu of tijdens de eerstvolgende donkere periode naar buiten?** De statische PWA is de primaire productrichting voor privégebruik. De native iOS-code blijft legacy/optioneel; een volledige Xcode-omgeving, signing of fysieke iPhone-validatie is geen voorwaarde voor de PWA.
 
 ## Testbare eisen
 
@@ -14,7 +14,8 @@ De PWA beantwoordt betrouwbaar één vraag: **moet ik nu of tijdens de eerstvolg
 6. Als een gevraagd weermoment meer dan 90 minuten buiten de beschikbare uurverwachting ligt, zal de app weigeren een schijnbaar nauwkeurige weerswaarde te tonen.
 7. Wanneer de bronbranch `pwa-hobby` wijzigt, zullen syntaxcontrole, deterministische kerntests en GitHub Pages-deployment automatisch draaien.
 8. De interface zal op een iPhone-breedte van 390 pixels zonder horizontale overflow of afgesneden hoofdinhoud werken.
-9. De app zal een manifest, herkenbaar pictogram, service worker en veilige HTTPS-publicatie bevatten.
+9. De app zal een manifest, herkenbaar pictogram, service worker, offline navigatiefallback en veilige HTTPS-publicatie bevatten.
+10. Wanneer live bronnen tijdelijk niet beschikbaar zijn, zal een eerder opgeslagen controle zichtbaar als oud en niet-live worden gemarkeerd; zonder snapshot blijft het advies expliciet onbeschikbaar.
 
 ## Bewuste grenzen
 
@@ -22,6 +23,7 @@ De PWA beantwoordt betrouwbaar één vraag: **moet ik nu of tijdens de eerstvolg
 - NOAA OVATION is een probabilistisch signaal en geen lokale zichtbaarheidsgarantie.
 - De PWA geeft geen pushnotificaties, accounts, backend of AR-overlay.
 - AR wordt pas gebouwd als heading, attitude, camera en kalibratie fysiek op een iPhone kunnen worden getest.
+- Offline modus toont alleen de laatst bekende controle; hij claimt geen actuele zichtbaarheid.
 
 ## Acceptatie
 

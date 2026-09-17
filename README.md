@@ -1,6 +1,8 @@
 # Night Sky Thomas 🌌
 
-Een persoonlijke iPhone-app die automatisch interessante gebeurtenissen aan de hemel boven Middelburg ontdekt, beoordeelt en helpt vinden.
+Een persoonlijke, mobile-first PWA die automatisch interessante gebeurtenissen aan de hemel boven Middelburg ontdekt, beoordeelt en helpt vinden.
+
+De PWA is het primaire product voor dit hobbyproject: statisch, privacy-first en bruikbaar op telefoon en desktop zonder account, backend of betaalde dienst. De bestaande Swift-code blijft beschikbaar als legacy/optionele experimentele lijn; Xcode, signing en een Apple Developer-account zijn niet nodig om de PWA te gebruiken of te publiceren.
 
 ## Missie
 
@@ -21,19 +23,16 @@ De app combineert astronomische gebeurtenissen, satellietpassages, ruimteweer en
 
 ## Techniek
 
-Native iOS-app in Swift + SwiftUI.
+Statische PWA in `pwa/` met vanilla JavaScript, een service worker en GitHub Pages.
 
-Belangrijkste lagen:
+Belangrijkste PWA-lagen:
 
-- `App` — lifecycle en navigatie
-- `Models` — uniforme SkyEvent- en observatiemodellen
-- `Services` — weer, satellieten, astronomie, ruimteweer en locatie
-- `Scoring` — Sky Score en zichtbaarheid
-- `Features/Tonight` — dashboard
-- `Features/Calendar` — kalender
-- `Features/EventDetail` — eventinformatie
-- `Features/ARFinder` — camera/AR-richtingzoeker
-- `Features/Settings` — voorkeuren en notificatiedrempels
+- `pwa/index.html` — Tonight-scherm en bronstatus
+- `pwa/app.js` — locatie, weer, ISS, maan, aurora en offline snapshot
+- `pwa/core.js` — deterministische weers- en schaduwberekeningen
+- `pwa/sw.js` — offline shell en navigatiefallback
+
+De Swift/SwiftUI-map is legacy en optioneel. De iOS-workflow draait niet automatisch; alleen de PWA-checks en Pages-deployment zijn onderdeel van de normale hobby-ontwikkelroute.
 
 ## Databronnen
 
@@ -41,8 +40,8 @@ Geplande bronnen zijn onder meer CelesTrak voor satellietbaangegevens, NOAA SWPC
 
 ## Roadmap
 
-### V1 — bruikbare kern
-Tonight, kalender, uniform eventmodel, locatie, weer, demo/live providers en Sky Score.
+### V1 — bruikbare PWA-kern
+Tonight, locatie, weer, live/demo-bronnen, Sky Score, installatie en offline laatst bekende controle.
 
 ### V2 — live sky intelligence
 Satellietpassages, ruimteweer, betere astronomische berekeningen, slimme filters en lokale notificaties.
