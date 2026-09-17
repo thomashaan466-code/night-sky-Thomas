@@ -1,0 +1,43 @@
+name: NightSkyThomas
+options:
+  bundleIdPrefix: nl.thomashaan
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  SwiftSGP4:
+    url: https://github.com/hjoliveira/swift-sgp4.git
+    revision: ab0fdc88e9799ae0435c1426a697838d0efdd261
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  NightSkyThomas:
+    type: application
+    platform: iOS
+    sources:
+      - NightSkyThomas
+    dependencies:
+      - package: SwiftSGP4
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: nl.thomashaan.nightsky
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Night Sky Thomas"
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Je locatie is nodig om precies te berekenen welke hemelobjecten vanuit jouw positie zichtbaar zijn en waar je moet kijken."
+        INFOPLIST_KEY_NSCameraUsageDescription: "De camera wordt gebruikt voor de AR Finder die laat zien waar aan de hemel je moet kijken."
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    scheme:
+      testTargets:
+        - NightSkyThomasTests
+  NightSkyThomasTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - NightSkyThomasTests
+    dependencies:
+      - target: NightSkyThomas

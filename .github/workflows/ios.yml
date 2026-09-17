@@ -1,0 +1,29 @@
+name: Legacy iOS Build (optional)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Optional legacy Swift validation
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project NightSkyThomas.xcodeproj -scheme NightSkyThomas
+      - name: Build and test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project NightSkyThomas.xcodeproj \
+            -scheme NightSkyThomas \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            CODE_SIGNING_ALLOWED=NO

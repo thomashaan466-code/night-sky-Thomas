@@ -1,0 +1,42 @@
+name: PWA checks
+
+on:
+  push:
+    branches: [recovery/clean-pwa-baseline, develop, main]
+    paths: ['pwa/**', 'README.md', 'docs/PROJECT_STATE.md', 'docs/PWA_PRODUCT_PLAN.md', 'docs/RECOVERY_INVENTORY.md', '.github/workflows/pwa.yml']
+  pull_request:
+    paths: ['pwa/**', 'README.md', 'docs/PROJECT_STATE.md', 'docs/PWA_PRODUCT_PLAN.md', 'docs/RECOVERY_INVENTORY.md', '.github/workflows/pwa.yml']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check pwa/core.js && node --check pwa/app.js && node --check pwa/sw.js
+      - name: Deterministic core tests
+        run: node --test pwa/tests/*.test.js
+      - name: Required PWA files
+        run: test -s pwa/index.html && test -s pwa/styles.css && test -s pwa/core.js && test -s pwa/manifest.webmanifest && test -s pwa/icon.svg && test -s pwa/icon-192.png && test -s pwa/icon-512.png && test -s pwa/apple-touch-icon.png
+      - name: Required recovery docs
+        run: test -s README.md && test -s docs/PROJECT_STATE.md && test -s docs/PWA_PRODUCT_PLAN.md && test -s docs/RECOVERY_INVENTORY.md
+      - name: Manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('pwa/manifest.webmanifest','utf8'))"
+      - name: Runtime location stays runtime-only
+        run: |
+          grep -q "navigator.geolocation" pwa/app.js
+          grep -q "Middelburg (fallback)" pwa/app.js
+          ! grep -R -i -E "(street|straat|laan|weg|plein|postcode|postal)[^\n]{0,40}[0-9]{1,4}" pwa --exclude=README.md
+      - name: Reliability guardrails
+        run: |
+          grep -q "timeformat=unixtime" pwa/app.js
+          grep -q "const TLE_FRESH_MS = 2 \* 3600e3" pwa/app.js
+          grep -q "ISS-bron niet beschikbaar" pwa/app.js
+          grep -q "Helderheid is niet berekend" pwa/app.js
+          grep -q "!state.isSnapshot && firstPass" pwa/app.js
+          grep -q "positieve live adviezen zijn uitgeschakeld" pwa/app.js
+          grep -q "astronomy-engine@2.1.19" pwa/sw.js
+          grep -q "satellite.js@6.0.1" pwa/sw.js

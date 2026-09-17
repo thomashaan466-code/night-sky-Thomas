@@ -1,58 +1,62 @@
 # Night Sky Thomas 🌌
 
-Een persoonlijke iPhone-app die automatisch interessante gebeurtenissen aan de hemel boven Middelburg ontdekt, beoordeelt en helpt vinden.
+Night Sky Thomas is een persoonlijke, mobile-first PWA met één hoofdvraag:
 
-## Missie
+> **Is er nu of binnenkort iets bijzonders aan de hemel waarvoor ik naar buiten moet?**
 
-Night Sky Thomas beantwoordt één vraag: **is er iets aan de hemel waarvoor ik nu of binnenkort naar buiten moet?**
+## Huidige productrichting
 
-De app combineert astronomische gebeurtenissen, satellietpassages, ruimteweer en lokaal weer. Alleen interessante gebeurtenissen krijgen prioriteit. De uiteindelijke ervaring bevat een Tonight-dashboard, kalender, eventdetails, slimme alerts en een AR Finder die laat zien waar de gebruiker moet kijken.
+De PWA in `pwa/` is het primaire product. Het eerste doel is een betrouwbare HTTPS-webapp die op iPhone, iPad en desktop werkt zonder account, betaalde backend, App Store-publicatie of Xcode.
 
-## Kernfuncties
+De bestaande Swift/SwiftUI-code blijft behouden als experimentele/reference-lijn. Daarin zit waardevol werk voor onder andere satellietberekeningen en databronnen, maar native iOS is tijdens de huidige recovery niet de primaire delivery-route.
 
-- Tonight-dashboard met de beste komende gebeurtenissen
-- Persoonlijke Sky Score per gebeurtenis
-- Kalender voor ISS, satellieten, aurora, meteoren, planeten, maan, kometen en verduisteringen
-- Lokale weers- en bewolkingscorrectie
-- Countdown en kijkrichting (azimut/elevatie)
-- Slimme notificaties zonder onnodige meldingen
-- AR Finder met camera, kompas en bewegingssensoren
-- Middelburg als persoonlijke thuislocatie, met ondersteuning voor andere locaties later
+**Actieve herstelbranch:** `recovery/clean-pwa-baseline`. Start tijdens de recovery geen nieuw werk vanaf `pwa-hobby` of de oude agent/coördinatiebranches.
+
+Zie `docs/PROJECT_STATE.md` voor de actuele technische source of truth, `docs/RECOVERY_INVENTORY.md` voor wat uit eerdere lijnen wordt behouden en issue #15 voor het recovery-plan.
+
+## Wat de huidige PWA doet
+
+- runtime locatie met transparante fallback wanneer locatie niet beschikbaar is;
+- lokaal weer en forecastcontext via Open-Meteo;
+- ISS/satellietkandidaten op basis van actuele/cached brondata;
+- onderscheid tussen satellietgeometrie, duisternis en satellietbelichting;
+- maan- en auroracontext;
+- expliciete loading-, stale-, offline- en bronfoutstates;
+- installable PWA-shell met service worker en offline laatst bekende controle;
+- deterministische kerntests in `pwa/tests/`.
+
+Een satelliet wordt niet alleen omdat hij boven de horizon staat als praktisch zichtbaar beschouwd. Helderheid/magnitude wordt niet verzonnen wanneer die niet betrouwbaar berekend wordt. Aurora blijft een probabilistisch signaal.
 
 ## Techniek
 
-Native iOS-app in Swift + SwiftUI.
+De primaire webimplementatie is statisch en privacy-first:
 
-Belangrijkste lagen:
+- `pwa/index.html` — mobile-first Tonight-interface;
+- `pwa/app.js` — runtime locatie, live databronnen en event-assembly;
+- `pwa/core.js` — deterministische kernlogica voor weer/schaduw;
+- `pwa/sw.js` — offline shell en navigatiefallback;
+- `.github/workflows/pwa.yml` — automatische PWA-validatie;
+- `.github/workflows/pages.yml` — GitHub Pages-deployment;
+- `.github/workflows/ios.yml` — alleen handmatige validatie van de optionele native lijn.
 
-- `App` — lifecycle en navigatie
-- `Models` — uniforme SkyEvent- en observatiemodellen
-- `Services` — weer, satellieten, astronomie, ruimteweer en locatie
-- `Scoring` — Sky Score en zichtbaarheid
-- `Features/Tonight` — dashboard
-- `Features/Calendar` — kalender
-- `Features/EventDetail` — eventinformatie
-- `Features/ARFinder` — camera/AR-richtingzoeker
-- `Features/Settings` — voorkeuren en notificatiedrempels
-
-## Databronnen
-
-Geplande bronnen zijn onder meer CelesTrak voor satellietbaangegevens, NOAA SWPC voor ruimteweer/aurora en Open-Meteo voor lokaal weer. Astronomische posities worden waar mogelijk lokaal berekend zodat de app niet afhankelijk is van één externe dienst.
+Belangrijke bronnen zijn CelesTrak voor satellietdata, NOAA/SWPC voor ruimteweer en Open-Meteo voor weer. Exacte privé-thuiscoördinaten horen niet in de repository; runtime locatie is leidend.
 
 ## Roadmap
 
-### V1 — bruikbare kern
-Tonight, kalender, uniform eventmodel, locatie, weer, demo/live providers en Sky Score.
+### Nu — betrouwbare baseline
 
-### V2 — live sky intelligence
-Satellietpassages, ruimteweer, betere astronomische berekeningen, slimme filters en lokale notificaties.
+Eén stabiele PWA, live bronnen, duidelijke bron/freshness-status, betrouwbare ISS-kandidaten, weer op relevant tijdstip, conservatieve foutafhandeling, goede mobiele UI en één deploymentpad.
 
-### V3 — AR
-Camera-overlay, kompas/heading, elevatie-indicator, live countdown en voorspelde baan over de hemel.
+### Daarna — sky intelligence
 
-### V4 — polish
-Widgets, Live Activities, favorieten, historie, observatielog en verdere personalisatie.
+Sky Score, betere eventselectie, meer gevalideerde hemelverschijnselen, kalender/tijdlijn en slimme aanbevelingen. Toekomstige gebeurtenissen worden beoordeeld met forecastcondities op het gebeurtenistijdstip.
 
-## Privacy
+### Later — geavanceerde ervaring
 
-De app is personal-first. Locatie wordt alleen gebruikt om lokale zichtbaarheid te berekenen. Waar mogelijk blijven berekeningen en voorkeuren op het toestel.
+Notificaties, uitgebreidere finderfuncties en eventueel native iOS/AR. AR wordt pas serieus gebouwd wanneer eventcoördinaten betrouwbaar zijn en heading/attitude/camera fysiek op een iPhone kunnen worden gevalideerd.
+
+## Werkwijze
+
+GitHub is de gedeelde source of truth voor Thomas, ChatGPT, Claude en Copilot. Normaal werk volgt: **issue → korte branch → implementatie + tests → PR → CI → review → merge**. Bouw geen aparte coördinatiebackend of parallelle verborgen projectstatus.
+
+Betrouwbaarheid gaat vóór hoeveelheid features. Een groene compiler of workflow bewijst niet automatisch dat een astronomische uitkomst inhoudelijk correct is.

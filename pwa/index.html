@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07101f" />
+  <meta name="description" content="Persoonlijke hemelcheck voor weer, ISS, maan en aurora." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Night Sky Thomas</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div><p class="eyebrow">NIGHT SKY THOMAS</p><h1>Moet ik naar buiten?</h1></div>
+      <button id="locate" class="icon" aria-label="Vernieuw locatie en hemelgegevens">◎</button>
+    </header>
+    <div id="connectionStatus" class="connection-status" role="status" aria-live="polite" hidden></div>
+
+    <section id="hero" class="hero card" aria-live="polite">
+      <p id="location">Locatie bepalen…</p>
+      <div class="verdict-row"><span id="verdictIcon">◌</span><h2 id="verdict">Hemel wordt gecontroleerd</h2></div>
+      <p id="reason">We combineren duisternis, weer, ISS, maan en aurora.</p>
+      <p id="updated" class="muted"></p>
+    </section>
+
+    <section class="grid">
+      <article class="card"><p class="label">NU</p><h3 id="darkness">—</h3><p id="weather">Weer laden…</p></article>
+      <article class="card"><p class="label">MAAN</p><h3 id="moon">—</h3><p id="moonSub">Positie laden…</p></article>
+    </section>
+
+    <section class="card feature">
+      <div><p class="label">ISS · KOMENDE 24 UUR</p><h3 id="iss">Passages berekenen…</h3><p id="issSub">Kandidaten vereisen een donkere hemel en een zonverlichte satelliet; helderheid wordt niet verondersteld.</p></div>
+      <span id="issBadge" class="badge">LIVE DATA</span>
+    </section>
+
+    <section class="card feature">
+      <div><p class="label">NOORDERLICHT</p><h3 id="aurora">Aurora laden…</h3><p id="auroraSub">NOAA OVATION, indicatief en geen garantie.</p></div>
+      <span id="auroraBadge" class="badge">NOAA</span>
+    </section>
+
+    <section class="card window-card">
+      <p class="label">EERSTVOLGENDE DONKERE PERIODE</p>
+      <h3 id="window">Kijkvenster berekenen…</h3>
+      <p id="windowSub">Schemering en weersverwachting worden gecombineerd.</p>
+    </section>
+
+    <section class="card"><p class="label">KOMENDE 6 UUR</p><div id="timeline" class="timeline"><p>Gegevens laden…</p></div></section>
+
+    <div class="source-strip" aria-label="Status van databronnen">
+      <span id="sourceWeather" class="source">OPEN-METEO …</span>
+      <span id="sourceISS" class="source">CELESTRAK …</span>
+      <span id="sourceAurora" class="source">NOAA …</span>
+    </div>
+
+    <a id="skyMap" class="primary" href="https://stellarium-web.org/" target="_blank" rel="noopener">Open interactieve hemelkaart ↗</a>
+    <p class="foot">Persoonlijke hobbytool. Een voorspelling blijft afhankelijk van actuele brondata en lokale omstandigheden.</p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js"></script>
+  <script src="core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
