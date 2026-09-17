@@ -1,0 +1,35 @@
+name: Coordination PR checks
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-coordination-pr:
+    if: contains(github.event.pull_request.title, '[coord]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate coordination PR metadata
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$PR_TITLE" =~ ^\[coord\] ]]; then
+            echo "PR title must start with [coord]."
+            exit 1
+          fi
+
+          if [[ ! "$PR_BODY" =~ Closes[[:space:]]+[[:alnum:]_.-]+/[[:alnum:]_.-]+#[0-9]+ ]]; then
+            echo "PR body must include: Closes owner/repo#<issue>."
+            exit 1
+          fi
+
+          if [[ ! "$PR_BODY" =~ Heartbeat[[:space:]]+\(UTC\) ]]; then
+            echo "PR body must include a Heartbeat (UTC) line."
+            exit 1
+          fi
