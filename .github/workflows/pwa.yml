@@ -3,9 +3,9 @@ name: PWA checks
 on:
   push:
     branches: [recovery/clean-pwa-baseline, develop, main]
-    paths: ['pwa/**', '.github/workflows/pwa.yml']
+    paths: ['pwa/**', 'README.md', 'docs/PROJECT_STATE.md', 'docs/PWA_PRODUCT_PLAN.md', '.github/workflows/pwa.yml']
   pull_request:
-    paths: ['pwa/**', '.github/workflows/pwa.yml']
+    paths: ['pwa/**', 'README.md', 'docs/PROJECT_STATE.md', 'docs/PWA_PRODUCT_PLAN.md', '.github/workflows/pwa.yml']
 
 jobs:
   validate:
@@ -21,6 +21,8 @@ jobs:
         run: node --test pwa/tests/*.test.js
       - name: Required PWA files
         run: test -s pwa/index.html && test -s pwa/styles.css && test -s pwa/core.js && test -s pwa/manifest.webmanifest && test -s pwa/icon.svg && test -s pwa/icon-192.png && test -s pwa/icon-512.png && test -s pwa/apple-touch-icon.png
+      - name: Required recovery docs
+        run: test -s README.md && test -s docs/PROJECT_STATE.md && test -s docs/PWA_PRODUCT_PLAN.md
       - name: Manifest JSON
         run: node -e "JSON.parse(require('fs').readFileSync('pwa/manifest.webmanifest','utf8'))"
       - name: Runtime location stays runtime-only
