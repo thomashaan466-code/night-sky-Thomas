@@ -36,3 +36,7 @@ jobs:
           grep -q "const TLE_FRESH_MS = 2 \* 3600e3" pwa/app.js
           grep -q "ISS-bron niet beschikbaar" pwa/app.js
           grep -q "Helderheid is niet berekend" pwa/app.js
+          grep -q "!state.isSnapshot && firstPass" pwa/app.js
+          grep -q "positieve live adviezen zijn uitgeschakeld" pwa/app.js
+          grep -q "astronomy-engine@2.1.19" pwa/sw.js
+          grep -q "satellite.js@6.0.1" pwa/sw.js
