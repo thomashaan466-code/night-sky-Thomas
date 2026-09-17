@@ -1,0 +1,39 @@
+name: Validate PR conventions
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-pr-conventions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate coordinator PR body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          body="${PR_BODY:-}"
+          title="${PR_TITLE:-}"
+
+          if [[ "$title" != \[coord\]* ]]; then
+            echo "PR is geen coordinator-PR; validatie wordt overgeslagen."
+            exit 0
+          fi
+
+          if ! grep -qiE 'Closes[[:space:]]+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+' <<<"$body"; then
+            echo "Coordinator-PR moet een issue-link bevatten: 'Closes owner/repo#nummer'."
+            exit 1
+          fi
+
+          if ! grep -qi 'Heartbeat (UTC)' <<<"$body"; then
+            echo "Coordinator-PR moet een 'Heartbeat (UTC)' regel bevatten."
+            exit 1
+          fi
+
+          echo "Coordinator-PR conventies gevalideerd."

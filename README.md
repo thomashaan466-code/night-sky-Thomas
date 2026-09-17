@@ -35,6 +35,14 @@ Belangrijkste lagen:
 - `Features/ARFinder` — camera/AR-richtingzoeker
 - `Features/Settings` — voorkeuren en notificatiedrempels
 
+## Coördinatie
+
+Coördinatie tussen agents en maintainers verloopt via GitHub:
+
+- Richtlijnen: `docs/AGENT_COORDINATION.md`
+- Issue-template: `.github/ISSUE_TEMPLATE/coordinator-task.yml`
+- Workflow-check: `.github/workflows/coordination.yml`
+
 ## Databronnen
 
 Geplande bronnen zijn onder meer CelesTrak voor satellietbaangegevens, NOAA SWPC voor ruimteweer/aurora en Open-Meteo voor lokaal weer. Astronomische posities worden waar mogelijk lokaal berekend zodat de app niet afhankelijk is van één externe dienst.

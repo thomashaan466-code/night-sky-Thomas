@@ -1,0 +1,84 @@
+name: Coordinator task
+description: Coördinatietaak voor agents en maintainers
+title: "[coord] "
+labels:
+  - coord
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gebruik dit template om coördinatiewerk te plannen en op te volgen.
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: Wat is het doel van deze coordinator-taak?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope/files
+      description: Welke bestanden of onderdelen zitten in scope?
+      placeholder: |
+        In scope:
+        - ...
+
+        Out of scope:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Eventuele afhankelijkheden of blockers
+      placeholder: Geen.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Gebruik checkboxes voor afvinkbare criteria
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: input
+    id: assigned-agent
+    attributes:
+      label: Assigned agent
+      description: Welke agent pakt dit op?
+      placeholder: chatgpt
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status
+      options:
+        - backlog
+        - in-progress
+        - blocked
+        - ready-for-review
+        - done
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Werkbranch (optioneel)
+      placeholder: feature/coord-...
+    validations:
+      required: false
+  - type: input
+    id: heartbeat
+    attributes:
+      label: Heartbeat (UTC)
+      description: Laatste update in UTC (bijv. 2026-09-17T15:10:00Z)
+      placeholder: 2026-09-17T15:10:00Z
+    validations:
+      required: true
