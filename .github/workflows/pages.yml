@@ -2,7 +2,7 @@ name: Deploy PWA to GitHub Pages
 
 on:
   push:
-    branches: [recovery/clean-pwa-baseline]
+    branches: [main]
     paths: ['pwa/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
