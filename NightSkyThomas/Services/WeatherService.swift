@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 protocol WeatherProviding {
     func conditions(latitude: Double, longitude: Double) async throws -> ObservationConditions
