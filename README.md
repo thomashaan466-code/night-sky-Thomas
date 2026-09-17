@@ -35,6 +35,13 @@ Belangrijkste lagen:
 - `Features/ARFinder` — camera/AR-richtingzoeker
 - `Features/Settings` — voorkeuren en notificatiedrempels
 
+## Ontwikkeling en validatie
+
+Deze repo bevat nu ook een Swift Package voor de core-logica (`NightSkyThomasCore`) zodat build en tests in CI reproduceerbaar draaien.
+
+- Build: `swift build`
+- Tests: `swift test`
+
 ## Databronnen
 
 Geplande bronnen zijn onder meer CelesTrak voor satellietbaangegevens, NOAA SWPC voor ruimteweer/aurora en Open-Meteo voor lokaal weer. Astronomische posities worden waar mogelijk lokaal berekend zodat de app niet afhankelijk is van één externe dienst.
