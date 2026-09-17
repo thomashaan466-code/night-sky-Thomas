@@ -18,6 +18,8 @@ Temporary recovery branch: `recovery/clean-pwa-baseline`
 
 Recovery tracking issue: #15
 
+Detailed preserved-work inventory: `docs/RECOVERY_INVENTORY.md`
+
 The recovery branch was created from the tested PWA improvement head. During recovery it is the only branch on which consolidation work should be performed. Do not start new work from the older `pwa-hobby` or agent coordination branches.
 
 `main` remains the stable historical branch until recovery is validated and deliberately promoted. `develop` contains substantial native/astronomy work and remains an important reference; it must not be force-reset or discarded.
