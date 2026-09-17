@@ -2,6 +2,10 @@
 
 Dit is de bewust kleine hobbyversie van Night Sky Thomas. De bestaande native iOS-code blijft onaangetast.
 
+## Live versie
+
+[Open Night Sky Thomas](https://thomashaan466-code.github.io/night-sky-Thomas/)
+
 ## Wat deze versie doet
 - vraagt browserlocatie; valt bij weigering terug op Middelburg (alleen plaatsniveau)
 - haalt actueel/verwacht weer op via Open-Meteo
@@ -22,7 +26,9 @@ python3 -m http.server 8080
 Open daarna `http://localhost:8080`.
 
 ## Publiceren
-De map is volledig statisch en kan op iedere HTTPS static host worden geplaatst. Voor iPhone: open de HTTPS-url in Safari en kies **Zet op beginscherm**.
+Een push naar `pwa-hobby` publiceert de map `pwa/` automatisch via GitHub Pages. De map is volledig statisch en kan ook op iedere andere HTTPS static host worden geplaatst.
+
+Voor iPhone: open de live HTTPS-url in Safari en kies **Zet op beginscherm**.
 
 ## Bewuste grenzen
 Dit is geen professionele astronomische alertingdienst. Aurora is probabilistisch. De ISS-schaduwtest is bewust conservatief maar eenvoudiger dan de gevalideerde native illumination-laag. Externe browserrequests kunnen door CORS/providerbeleid uitvallen; in dat geval wordt geen positief advies geforceerd. Geen accounts, backend, pushnotificaties of AR.
