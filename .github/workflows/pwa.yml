@@ -2,7 +2,7 @@ name: PWA checks
 
 on:
   push:
-    branches: [pwa-hobby]
+    branches: [recovery/clean-pwa-baseline, develop, main]
     paths: ['pwa/**', '.github/workflows/pwa.yml']
   pull_request:
     paths: ['pwa/**', '.github/workflows/pwa.yml']
