@@ -1,0 +1,104 @@
+# GitHub-coördinatie voor coding agents
+
+Deze repository gebruikt GitHub als goedkope, controleerbare coördinatielaag voor
+Claude, ChatGPT/Copilot en menselijke bijdragers. GitHub Issues zijn de bron van
+waarheid; branches en pull requests bevatten het werk. Er is geen betaalde
+backend en er staan geen API-sleutels in de iOS-app.
+
+## Eenmalige handmatige setup
+
+Een maintainer voert deze stappen één keer uit in GitHub. Deze repository maakt
+bewust geen externe resources of Project-ID's automatisch aan.
+
+1. Maak een GitHub Project (Board) voor `NightSkyThomas` met kolommen
+   `Backlog`, `Ready`, `In progress`, `Review`, `Done` en `Blocked`.
+2. Maak de labels `coordination`, `agent:claude`, `agent:chatgpt`,
+   `status:claimed`, `status:blocked`, `status:review` en `scope:docs`.
+   Bestaande labels mogen dezelfde betekenis houden; dupliceer ze niet.
+3. Koppel het Project aan de repository en voeg nieuwe issues handmatig of via
+   de Project-automation toe. Gebruik geen hardcoded numeric Project-ID in code.
+4. Geef iedere agent alleen de GitHub/MCP-rechten die nodig zijn: issues lezen
+   en bijwerken, branches maken, en pull requests openen. Gebruik liever een
+   persoonlijke of GitHub App-token buiten de app dan een token in deze repo.
+
+## Werkstroom
+
+### 1. Taak aanmaken
+
+Gebruik **Coordinator task** en vul alle velden in. De issue is het contract:
+objective, scope/files, dependencies, acceptance criteria, assigned agent,
+status, branch en heartbeat moeten altijd actueel zijn. Eén issue beschrijft
+één samenhangende wijziging.
+
+### 2. Claimen
+
+Lees eerst de issue, openstaande PR's en recente wijzigingen. Claim daarna de
+taak in één update:
+
+- zet `Assigned agent` op `claude`, `chatgpt` of een menselijke naam;
+- zet `Status` op `claimed` en voeg `status:claimed` toe;
+- kies een branch volgens `agent/<issue-number>-<korte-slug>`; bijvoorbeeld
+  `agent/42-coordinate-docs`;
+- vul `Branch` en `Heartbeat` in met een UTC-tijdstip in ISO 8601;
+- verplaats het Project-item naar `In progress`.
+
+Claim geen issue dat al door een andere agent is geclaimd. Bij twijfel wint de
+oudste heartbeat; vraag een maintainer voordat je een claim overschrijft.
+
+### 3. Heartbeat en release
+
+Werk de heartbeat bij bij iedere betekenisvolle voortgang en minimaal iedere
+30 minuten tijdens actief werk. Een heartbeat ouder dan 2 uur is stale. Een
+andere agent mag een stale taak niet stilzwijgend overnemen: reageer eerst op
+de issue en geef de oorspronkelijke agent een redelijke kans om de claim te
+verlengen.
+
+Bij pauzeren of afronden:
+
+- zet `Status` op `paused`, `blocked` of `ready-for-review`;
+- noteer wat nog ontbreekt en de laatste branch/commit;
+- verwijder `status:claimed` wanneer je de taak vrijgeeft;
+- verplaats het Project-item naar `Blocked` of `Review`.
+
+### 4. Pull request
+
+Open één PR per issue en link die met `Closes #<nummer>`. De PR moet bevatten:
+
+- een korte samenvatting en expliciete scope;
+- test- of validatieresultaten;
+- eventuele risico's, migraties of handmatige setup;
+- de exacte issue- en branchreferentie.
+
+PR-titels beginnen met `[coord]` voor coördinatie/documentatiewerk of met een
+normale, beschrijvende titel voor app-code. Houd wijzigingen klein. Voeg geen
+API-sleutels, project-ID's, persoonlijke tokens of gegenereerde Xcode-bestanden
+toe. Reviews en CI zijn vereist voordat de maintainer merge't.
+
+## Conflictvermijding
+
+- Claim eerst; werk niet rechtstreeks op `main` of `develop`.
+- Raak geen bestanden buiten de issue-scope aan.
+- Synchroniseer vóór een grote wijziging en los conflicten op de eigen branch op.
+- Kies bij overlappende claims één eigenaar en maak afhankelijkheden expliciet
+  in `Dependencies`; splits anders het werk in aparte issues.
+- Gebruik GitHub/MCP voor issue-, branch- en PR-status. Gebruik lokale bestanden
+  alleen voor de implementatie en tests; vertrouw niet op een tweede, verborgen
+  coördinatiedatabase.
+
+## GitHub/MCP-richtlijnen
+
+Agents mogen via GitHub of MCP issues, labels, branches en PR's lezen en
+bijwerken volgens hun toegekende rechten. Controleer altijd repository,
+issue-nummer en branch voordat je schrijft. Gebruik geen aannames over een
+Project-ID en maak geen remote resources aan zonder expliciete maintaineractie.
+Bij tegenstrijdige statusinformatie is de issuecommentaar met de nieuwste UTC
+heartbeat leidend; meld afwijkingen in de issue.
+
+## Canonieke statuswaarden
+
+`ready`, `claimed`, `in-progress`, `blocked`, `ready-for-review`, `paused`,
+`done`.
+
+Gebruik labels voor filtering (`coordination`, `agent:*`, `status:*`,
+`scope:*`), maar bewaar de volledige waarheid in de issuevelden. Een label
+alleen is geen claim.

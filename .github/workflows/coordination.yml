@@ -1,0 +1,51 @@
+name: Coordination conventions
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate PR conventions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate title, branch, and coordination metadata
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -eu
+
+          if ! printf '%s' "$PR_BRANCH" | grep -Eq '^(agent|fix|feature|docs|chore)/[0-9]+-[a-z0-9][a-z0-9-]*$'; then
+            echo "Invalid branch: use agent/<issue-number>-<short-slug> (or the equivalent fix/feature/docs/chore prefix)." >&2
+            exit 1
+          fi
+
+          if [ -z "$PR_BODY" ]; then
+            echo "PR body must include scope and validation details." >&2
+            exit 1
+          fi
+
+          if ! printf '%s' "$PR_BODY" | grep -Eiq 'closes[[:space:]]+#[0-9]+'; then
+            echo "PR body must link its coordinator issue with 'Closes #<number>'." >&2
+            exit 1
+          fi
+
+          if ! printf '%s' "$PR_BODY" | grep -Eiq '(test|validation|validatie|check)'; then
+            echo "PR body must document tests or validation." >&2
+            exit 1
+          fi
+
+          case "$PR_TITLE" in
+            "[coord]"*|[![:space:]]*)
+              ;;
+            *)
+              echo "PR title must be descriptive and non-empty." >&2
+              exit 1
+              ;;
+          esac

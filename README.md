@@ -56,3 +56,11 @@ Widgets, Live Activities, favorieten, historie, observatielog en verdere persona
 ## Privacy
 
 De app is personal-first. Locatie wordt alleen gebruikt om lokale zichtbaarheid te berekenen. Waar mogelijk blijven berekeningen en voorkeuren op het toestel.
+
+## Samenwerken met coding agents
+
+GitHub Issues, branches en pull requests vormen de coördinatielaag voor
+Claude, ChatGPT/Copilot en menselijke bijdragers. Zie
+[docs/AGENT_COORDINATION.md](docs/AGENT_COORDINATION.md) voor de canonieke
+issuevelden, claim/heartbeat-conventies, branchregels en eenmalige GitHub
+Project-setup.

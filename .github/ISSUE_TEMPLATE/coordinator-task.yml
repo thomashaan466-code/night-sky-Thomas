@@ -1,0 +1,89 @@
+name: Coordinator task
+description: Plan and claim a scoped task for a coding agent or maintainer
+title: "[coord] "
+labels:
+  - coordination
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gebruik dit formulier als canoniek werkcontract. Werk status en heartbeat bij tijdens de uitvoering.
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: Wat moet aantoonbaar bereikt zijn?
+      placeholder: Beschrijf het gewenste resultaat in één of twee zinnen.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope/files
+      description: Welke onderdelen of bestanden vallen wel en niet binnen scope?
+      placeholder: |
+        In scope:
+        - docs/...
+
+        Out of scope:
+        - Swift app code
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Noem issue-nummers, PR's, beslissingen of externe blokkades.
+      placeholder: Geen, of bijvoorbeeld #12 en PR #18.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Concrete voorwaarden waaraan de maintainer kan toetsen.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: input
+    id: assigned-agent
+    attributes:
+      label: Assigned agent
+      description: claude, chatgpt, copilot of menselijke naam; leeg laten tot claim.
+      placeholder: claude
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status
+      options:
+        - ready
+        - claimed
+        - in-progress
+        - blocked
+        - ready-for-review
+        - paused
+        - done
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Gebruik agent/<issue-number>-<korte-slug>; invullen bij claim.
+      placeholder: agent/123-short-slug
+  - type: input
+    id: heartbeat
+    attributes:
+      label: Heartbeat (UTC)
+      description: ISO 8601 UTC, bijvoorbeeld 2026-09-17T14:40:00Z.
+      placeholder: 2026-09-17T14:40:00Z
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: Ik heb recente issues/PR's gecontroleerd en geen actieve claim overschreven.
+          required: true
+        - label: Ik voeg geen API-sleutels, tokens of hardcoded GitHub Project-ID's toe.
+          required: true
