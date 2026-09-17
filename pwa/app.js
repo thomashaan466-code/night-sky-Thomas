@@ -14,6 +14,7 @@ let state = {
   issTleSource: null,
   aurora: null,
   moon: null,
+  isSnapshot: false,
 };
 
 const fmt = date => new Intl.DateTimeFormat('nl-NL', {
@@ -123,7 +124,7 @@ function saveSnapshot() {
   try {
     localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({
       savedAt: Date.now(),
-      state,
+      state: { ...state, isSnapshot: false },
     }));
   } catch {}
 }
@@ -139,6 +140,7 @@ function readSnapshot() {
       end: pass.end ? new Date(pass.end) : undefined,
     }));
     cachedState.moon = cachedState.moon || null;
+    cachedState.isSnapshot = true;
     return { savedAt: snapshot.savedAt, state: cachedState };
   } catch {
     return null;
@@ -316,7 +318,13 @@ function render() {
     ? `${Math.round(moon.altitude)}° hoog richting ${direction(moon.azimuth)}`
     : 'Onder de horizon';
 
-  if (state.issStatus === 'error') {
+  if (state.isSnapshot) {
+    $('iss').textContent = state.iss.length ? 'Opgeslagen ISS-kandidaat' : 'Geen opgeslagen ISS-kandidaat';
+    $('issSub').textContent = state.iss.length
+      ? `Laatste controle bevatte een kandidaat rond ${fmt(state.iss[0].start)}. Dit is opgeslagen informatie en geen actueel passageadvies.`
+      : 'Dit is een opgeslagen controle en geen actuele ISS-voorspelling.';
+    $('iss').className = '';
+  } else if (state.issStatus === 'error') {
     $('iss').textContent = 'ISS-bron niet beschikbaar';
     $('issSub').textContent = 'CelesTrak-data kon niet betrouwbaar worden geladen. Er wordt daarom geen passageadvies gegeven.';
     $('iss').className = '';
@@ -335,7 +343,10 @@ function render() {
     $('iss').className = '';
   }
 
-  if (state.aurora) {
+  if (state.isSnapshot) {
+    $('aurora').textContent = 'Opgeslagen auroracontext';
+    $('auroraSub').textContent = 'Offline/opgeslagen NOAA-informatie wordt niet gebruikt voor een actueel aurora-advies.';
+  } else if (state.aurora) {
     const value = state.aurora.value;
     $('aurora').textContent = value >= 20 ? 'Verhoogd signaal' : value >= 8 ? 'Zwak signaal' : 'Geen lokaal signaal';
     $('auroraSub').textContent = `OVATION nabij jouw locatie: ${Math.round(value)}%. Indicatief, geen zichtbaarheidsgarantie.`;
@@ -347,18 +358,20 @@ function render() {
   renderNightWindow(location, weather, now);
 
   const firstPass = state.iss[0];
-  let verdict = 'Geen sterke reden om nu naar buiten te gaan';
-  let reason = 'Ik zie nu geen combinatie van een bijzonder event en goede omstandigheden.';
+  let verdict = state.isSnapshot ? 'Opgeslagen hemelcheck — geen live advies' : 'Geen sterke reden om nu naar buiten te gaan';
+  let reason = state.isSnapshot
+    ? 'De getoonde gegevens zijn eerder opgeslagen. Maak verbinding en vernieuw voordat je een kijkbeslissing neemt.'
+    : 'Ik zie nu geen combinatie van een bijzonder event en goede omstandigheden.';
   let verdictClass = '';
 
-  if (firstPass && firstPass.start - now < 45 * 60000) {
+  if (!state.isSnapshot && firstPass && firstPass.start - now < 45 * 60000) {
     const passWeather = weatherAt(weather, firstPass.start);
     if (passWeather && passWeather.cloud < 55 && passWeather.rain < 35 && state.issTleSource !== 'stale-cache') {
       verdict = 'ISS-kans binnenkort';
       reason = `Rond ${fmt(firstPass.start)} is er een ISS-kijkkandidaat. Verwacht: ${Math.round(passWeather.cloud)}% bewolking en ${Math.round(passWeather.rain)}% regenkans. Helderheid is niet berekend, dus dit is geen zichtbaarheidsgarantie.`;
       verdictClass = 'good';
     }
-  } else if (state.aurora && state.aurora.value >= 20 && solarAltitude < -6 && currentWeather.cloud < 45) {
+  } else if (!state.isSnapshot && state.aurora && state.aurora.value >= 20 && solarAltitude < -6 && currentWeather.cloud < 45) {
     verdict = 'Aurorasignaal — kijkcondities controleren';
     reason = 'NOAA toont een verhoogd lokaal OVATION-signaal en de hemel is voldoende donker. Dit blijft probabilistisch.';
     verdictClass = 'warn';
@@ -367,7 +380,9 @@ function render() {
   $('verdict').textContent = verdict;
   $('verdict').className = verdictClass;
   $('reason').textContent = reason;
-  $('updated').textContent = `Bijgewerkt ${fmt(now)} · bronfouten worden nooit als positief advies geïnterpreteerd.`;
+  $('updated').textContent = state.isSnapshot
+    ? 'Opgeslagen gegevens · positieve live adviezen zijn uitgeschakeld.'
+    : `Bijgewerkt ${fmt(now)} · bronfouten worden nooit als positief advies geïnterpreteerd.`;
 
   const rows = [];
   for (let hour = 0; hour < 6; hour += 1) {
@@ -378,9 +393,9 @@ function render() {
   }
   $('timeline').innerHTML = rows.length ? rows.join('') : '<p>Geen passende uurverwachting beschikbaar.</p>';
 
-  setSourceState('sourceWeather', 'OPEN-METEO', 'ok');
-  setSourceState('sourceISS', 'CELESTRAK', state.issStatus === 'ok' ? 'ok' : 'error');
-  setSourceState('sourceAurora', 'NOAA', state.aurora ? 'ok' : 'error');
+  setSourceState('sourceWeather', 'OPEN-METEO', state.isSnapshot ? 'error' : 'ok');
+  setSourceState('sourceISS', 'CELESTRAK', !state.isSnapshot && state.issStatus === 'ok' ? 'ok' : 'error');
+  setSourceState('sourceAurora', 'NOAA', !state.isSnapshot && state.aurora ? 'ok' : 'error');
 }
 
 function setLoading(isLoading) {
@@ -407,6 +422,7 @@ async function refresh() {
     ]);
 
     state.weather = weather;
+    state.isSnapshot = false;
     if (issResult.ok) {
       state.iss = issResult.passes;
       state.issStatus = 'ok';
@@ -425,11 +441,14 @@ async function refresh() {
     const snapshot = readSnapshot();
     if (snapshot) {
       state = snapshot.state;
-      state.issStatus = 'error';
-      state.issTleSource = null;
       renderConnectionStatus({ offline: !navigator.onLine, savedAt: snapshot.savedAt });
-      render();
-      $('updated').textContent = `Opgeslagen controle ${fmt(new Date(snapshot.savedAt))} · live vernieuwing mislukt.`;
+      try {
+        render();
+        $('updated').textContent = `Opgeslagen controle ${fmt(new Date(snapshot.savedAt))} · live vernieuwing mislukt; geen live advies.`;
+      } catch {
+        $('verdict').textContent = 'Opgeslagen controle is te oud voor actuele weergave';
+        $('reason').textContent = 'Maak verbinding en vernieuw. Oude forecastdata wordt niet als actuele hemelcheck getoond.';
+      }
     } else {
       $('verdict').textContent = 'Live controle niet gelukt';
       $('reason').textContent = 'Maak verbinding en vernieuw. Zonder actuele brondata geeft Night Sky Thomas geen positief kijkadvies.';
@@ -456,7 +475,12 @@ if (!navigator.onLine) {
   if (snapshot) {
     state = snapshot.state;
     renderConnectionStatus({ offline: true, savedAt: snapshot.savedAt });
-    render();
+    try {
+      render();
+    } catch {
+      $('verdict').textContent = 'Opgeslagen controle is te oud voor actuele weergave';
+      $('reason').textContent = 'Maak verbinding en vernieuw. Oude forecastdata wordt niet als actuele hemelcheck getoond.';
+    }
   }
 }
 refresh();
