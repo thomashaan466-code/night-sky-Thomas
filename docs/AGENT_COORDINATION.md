@@ -27,6 +27,48 @@ De bestaande projectstatus gebruikt de standaard GitHub-opties `Todo`,
 `In Progress` en `Done`. De canonieke detailstatus blijft in de issuevelden;
 gebruik labels en issuecomments voor `Blocked`, `Review` en heartbeat-informatie.
 
+## Werken vanaf iPad of telefoon
+
+De repository en taakstatus staan op GitHub, dus je hoeft niet op dezelfde wifi
+te zitten en je hoeft de Mac niet als enige toegangspunt te gebruiken.
+
+1. Open GitHub in de browser of de GitHub-app en gebruik dezelfde account.
+2. Open **NightSkyThomas Coordination** voor de actuele taken en open issue #8
+   of een nieuwe `Coordinator task` voor werk.
+3. Gebruik de mobiele Claude-, ChatGPT- of Copilot-app alleen met de officiële
+   GitHub-verbinding. Controleer vóór een schrijfactie repository,
+   issue-nummer, branch en agentclaim.
+4. Laat de Mac code uitvoeren, testen en commits maken. De resultaten horen in
+   de issue en pull request; de Mac hoeft niet handmatig bediend te worden
+   vanaf de telefoon.
+5. Gebruik vanaf mobiel vooral lezen, prioriteren, claimen, blokkeren en
+   reviewen. Geef codewijzigingen als een expliciete issue-opdracht.
+
+Een werkende Mac is handig voor Xcode en iOS Simulator, maar is geen
+single-point-of-failure voor de projectstatus. Als de Mac uitvalt, blijven
+issues, branches, PR's, reviews en CI beschikbaar. Start geen publiek
+toegankelijke SSH- of remote-desktoppoort alleen voor deze workflow; gebruik
+de bestaande beveiligde externe-beheeroplossing of een private VPN en bewaar
+credentials uitsluitend in de betreffende app of secret store.
+
+### Mobiele overdracht
+
+Gebruik bij pauzeren één issuecommentaar met:
+
+```text
+HANDOFF
+Agent: claude|chatgpt|human
+Status: paused|blocked|ready-for-review
+Branch: agent/<issue-number>-<short-slug>
+Commit: <sha of laatste commit>
+Next: <één concrete volgende stap>
+Heartbeat: <UTC ISO 8601>
+```
+
+De volgende agent leest eerst dit commentaar, de laatste commit en de CI-status.
+Zo blijft de overdracht volledig op GitHub staan en is geen chatgeschiedenis op
+de telefoon of Mac vereist.
+
 ## Werkstroom
 
 ### 1. Taak aanmaken
