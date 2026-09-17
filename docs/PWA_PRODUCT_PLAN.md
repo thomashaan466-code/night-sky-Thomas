@@ -1,34 +1,42 @@
-# Night Sky Thomas — afrondingsplan
+# Night Sky Thomas — PWA baseline acceptance plan
 
 ## Doel
 
-De PWA beantwoordt betrouwbaar één vraag: **moet ik nu of tijdens de eerstvolgende donkere periode naar buiten?** De statische PWA is de primaire productrichting voor privégebruik. De native iOS-code blijft legacy/optioneel; een volledige Xcode-omgeving, signing of fysieke iPhone-validatie is geen voorwaarde voor de PWA.
+De PWA moet betrouwbaar antwoord geven op: **moet ik nu of tijdens een komende relevante periode naar buiten?** De native iOS-code blijft behouden als aparte experimentele/reference-lijn totdat daar opnieuw bewust voor wordt gekozen en fysieke iPhone-validatie beschikbaar is.
 
-## Testbare eisen
+## Baseline-eisen
 
-1. Wanneer de app opent, zal zij live weer, maancontext, ISS-kandidaten en auroradata laden zonder een bronfout als positief advies te interpreteren.
-2. Wanneer de gebruiker locatietoegang weigert of de browserlocatie niet beschikbaar is, zal de app transparant terugvallen op Middelburg op plaatsniveau.
-3. Wanneer een ISS geometrisch boven de minimumhoogte komt, zal de app deze alleen als kijkkandidaat tonen als de waarnemershemel voldoende donker en de satelliet volgens het schaduwmodel zonverlicht is.
-4. Als actuele TLE-data niet beschikbaar zijn, zal de app alleen cachedata jonger dan 24 uur gebruiken en dit zichtbaar melden.
-5. Wanneer een donker venster binnen de weershorizon valt, zal de app het gunstigste halfuur bepalen op basis van bewolking en neerslag.
-6. Als een gevraagd weermoment meer dan 90 minuten buiten de beschikbare uurverwachting ligt, zal de app weigeren een schijnbaar nauwkeurige weerswaarde te tonen.
-7. Wanneer de bronbranch `pwa-hobby` wijzigt, zullen syntaxcontrole, deterministische kerntests en GitHub Pages-deployment automatisch draaien.
-8. De interface zal op een iPhone-breedte van 390 pixels zonder horizontale overflow of afgesneden hoofdinhoud werken.
-9. De app zal een manifest, herkenbaar pictogram, service worker, offline navigatiefallback en veilige HTTPS-publicatie bevatten.
-10. Wanneer live bronnen tijdelijk niet beschikbaar zijn, zal een eerder opgeslagen controle zichtbaar als oud en niet-live worden gemarkeerd; zonder snapshot blijft het advies expliciet onbeschikbaar.
+1. De app laadt live weer, maancontext, ISS-kandidaten en auroracontext zonder een bronfout als positief advies te interpreteren.
+2. Runtime locatie is leidend. Bij geweigerde/onbeschikbare browserlocatie wordt een algemene Middelburg-fallback transparant getoond; exacte privé-thuiscoördinaten worden niet gecommit.
+3. Een geometrische ISS-passage wordt alleen als kijkkandidaat behandeld wanneer de waarnemershemel voldoende donker is en de satelliet volgens het geïmplementeerde schaduwmodel zonverlicht is.
+4. TLE/GP-data heeft een expliciete freshness-status. Verouderde of ontbrekende data mag geen schijnbaar actueel advies produceren.
+5. Weer voor een toekomstig observatiemoment wordt gekoppeld aan het relevante forecasttijdstip. Buiten het beschikbare forecastvenster wordt geen schijnprecisie getoond.
+6. Bron-, loading-, offline-, stale- en no-data-states zijn zichtbaar en conservatief.
+7. De interface werkt op een iPhone-breedte van ongeveer 390 px zonder horizontale overflow of afgesneden hoofdinhoud.
+8. De PWA bevat manifest, herkenbare iconen, service worker, navigatiefallback en HTTPS-publicatie via één Pages-workflow.
+9. Syntaxcontrole en deterministische kerntests draaien automatisch op de actieve recovery/integratiebranches en pull requests.
+10. Productietekst maakt geen niet-gevalideerde claims over magnitude, zichtbaarheid, auroragarantie of andere meetwaarden.
 
-## Bewuste grenzen
+## Astronomische grenzen
 
-- Een ISS-kijkkandidaat is geen helderheidsgarantie; de PWA berekent nog geen magnitude.
-- NOAA OVATION is een probabilistisch signaal en geen lokale zichtbaarheidsgarantie.
-- De PWA geeft geen pushnotificaties, accounts, backend of AR-overlay.
-- AR wordt pas gebouwd als heading, attitude, camera en kalibratie fysiek op een iPhone kunnen worden getest.
-- Offline modus toont alleen de laatst bekende controle; hij claimt geen actuele zichtbaarheid.
+- Een ISS-kijkkandidaat is geen helderheidsgarantie zolang magnitude niet betrouwbaar wordt berekend.
+- Boven de horizon betekent niet automatisch zichtbaar.
+- NOAA/SWPC-auroradata is probabilistisch en geen lokale zichtbaarheidsgarantie.
+- Random meteoren/vuurballen worden niet als voorspelbare gebeurtenissen gepresenteerd.
+- Een toekomstige Sky Score moet belang, hoogte, duur, helderheid waar beschikbaar, twilight, event-time weer, satellietbelichting en betrouwbaarheid scheiden.
 
-## Acceptatie
+## Recovery-acceptatie
 
-- Lokale Node-tests groen.
-- PWA GitHub Actions groen.
-- Pages-deployment groen.
-- Live HTTPS-pagina laadt actuele gegevens en heeft geen consolefouten.
-- Loading-, geladen en bronfoutgedrag zijn conservatief en begrijpelijk.
+De recovery mag pas naar de normale ontwikkelroute wanneer:
+
+- PWA Actions groen zijn op de actuele recovery HEAD;
+- de live HTTPS-PWA handmatig is gecontroleerd op een echte mobiele browser;
+- loading/no-data/offline/stale-gedrag begrijpelijk is;
+- er één deploymentpad is;
+- README, `docs/PROJECT_STATE.md` en dit document dezelfde productrichting beschrijven;
+- de belangrijkste astronomische logica niet alleen compileert/test maar waar mogelijk met onafhankelijke referentiecases is gecontroleerd;
+- openstaande bekende betrouwbaarheidsproblemen expliciet als issue zijn vastgelegd.
+
+## Na recovery
+
+Gebruik één normale flow: issue → korte featurebranch → tests → PR → CI → review → merge. Eerst de betrouwbare Tonight-baseline verbeteren; pas daarna kalender, scoring, notificaties, brede eventcatalogus of AR/native uitbreiden.
